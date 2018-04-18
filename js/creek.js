@@ -1146,7 +1146,8 @@ let MapManager = (function () {
         loading.splice(to_remove[i], 1);
       }
     },
-    is_loading = function () {
+    is_loading = function (map_id) {
+      map_id = map_id || current_map_id;
       return maps[current_map_id].loading;
     },
     init = function (_manager) {
