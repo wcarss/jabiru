@@ -1,0 +1,35 @@
+so, fixing initial map loads of dynamic entities... my options are:
+
+- add (a) new step(s) that trigger after the stale entities check
+    - will work, easy enough to make work
+    - may have complications
+    - won't solve future instances of similar problems
+    - hacky; "feels wrong"
+- modify the location of the existing init so it happens after stale ent
+    - may have complications
+    - not straight-forward
+- modify the stale ent so it happens before init
+    - same as above
+- modify the stale ent call so it doesn't clear some stuff
+    - hacky
+- modify the init call so its stuff won't get cleared by stale ent
+    - hacky
+- modify the whole system so that stale and init don't clash
+    - no idea how to do this
+    - a couple days later: did this!
+      - got rid of "stale", it was an umbrella to make it so I wouldn't
+        have to think about when to change maps and how to load entities,
+        at a time when bidirectional communication between managers was
+        very hard to do without opening up holes big enough to drive
+        dump-trucks through.
+
+        Now that it's easy to (in a limited space) tap a manager on the
+        shoulder and ask it nicely to set up the entities, it's easy to
+        do so within the change_maps function. So stale_entities isn't
+        actually needed at all, and the calls to get entities aren't in
+        most places either.
+
+        ... also, this resolved the problem! It required a bit more
+            intelligence around if/when a map is loaded, and I think
+            that method is getting called every frame, so... I might
+            want to find a way to lock that down. Later. :D

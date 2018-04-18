@@ -57,7 +57,7 @@
                 let entity_manager = manager.get('entity');
               }
             };
-            map.layers[0].push(tile);
+            entity_manager.add_entity(tile);
           }
         }
         console.log("map " + this.id + ": initialized");

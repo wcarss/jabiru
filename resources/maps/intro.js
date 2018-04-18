@@ -22,14 +22,14 @@
 
         entity_manager.add_text({
           id: "game_start",
-          text: "map: " + map_manager.get_current_map_id,
-          x: 10,
-          y: 38,
+          text: "PRESS ENTER TO BEGIN",
+          x: 200,
+          y: 200,
           offset_type: "camera",
-          font: "14px sans",
+          font: "44px sans",
           color: "white",
           update: function (delta, manager) {
-            this.text = "map: " + manager.get('map').get_current_map_id();
+            this.text = "PRESS ENTER TO BEGIN"
           },
         });
       },

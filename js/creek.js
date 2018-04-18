@@ -1082,23 +1082,27 @@ let MapManager = (function () {
     change_maps = function (map_id) {
       let now = performance.now();
 
-      // only change maps every min_change_time ms
-      if (now - last_change_time > min_change_time) {
-        // teardown actions in old map (if any)
-        if (maps[current_map_id].deinit) {
-          maps[current_map_id].deinit(manager);
-        }
-
-        // actually change the map
-        current_map_id = map_id;
-
-        // setup actions in new map (if any)
-        if (maps[current_map_id].init) {
-          maps[current_map_id].init(manager);
-        }
-
-        last_change_time = now;
+      // don't allow changes too frequently or if still loading
+      if (is_loading(map_id) || (last_change_time && (now - last_change_time < min_change_time))) {
+        return false;
       }
+
+      // teardown actions in old map (if any)
+      if (last_change_time !== null && maps[current_map_id].deinit) {
+        maps[current_map_id].deinit(manager);
+      }
+
+      // actually change the map
+      current_map_id = map_id;
+      manager.get('entity').setup_entities();
+
+      // setup actions in new map (if any)
+      if (maps[current_map_id].init) {
+        maps[current_map_id].init(manager);
+      }
+
+      last_change_time = now;
+      return true;
     },
     get_quadtree = function (map, leaf_size) {
       let i = null, j = null;
@@ -1127,6 +1131,7 @@ let MapManager = (function () {
       let to_remove = [],
         i = null,
         script_manager = manager.get('script'),
+        map_manager = manager.get('map'),
         script = null;
 
       for (i in loading) {
@@ -1138,6 +1143,10 @@ let MapManager = (function () {
 
         if (script.loaded && script.data) {
           maps[script.data.map.id] = script.data.map;
+          maps[script.data.map.id].loading = false;
+          if (script.data.map.id == map_manager.get_current_map_id()) {
+            map_manager.change_maps(script.data.map.id);
+          }
           to_remove.push(i);
         }
       }
@@ -1169,7 +1178,7 @@ let MapManager = (function () {
       }
       min_change_time = config['min_map_change_time'] || 150;
       current_map_id = config['initial_map_id'];
-      last_change_time = 0;
+      change_maps(current_map_id);
     };
 
   return function () {
@@ -1524,9 +1533,6 @@ let EntityManager = (function () {
       if (maps.is_loading()) {
         return entities;
       }
-      if (stale_entities()) {
-        setup_entities();
-      }
 
       let camera = camera_manager.get_camera(),
         x = camera.x-camera.left_margin,
@@ -1556,19 +1562,25 @@ let EntityManager = (function () {
     },
     setup_entities = function () {
       let current_map = maps.get_map(),
-        layers = current_map.layers,
-        map_bg = {
-          "id": "bg1",
-          "img": "bg",
-          "x": 0,
-          "y": 0,
-          "x_scale": 12,
-          "y_scale": 12,
-          "x_size": current_map.width,
-          "y_size": current_map.height,
-          "layer": -99,
-        };
+        layers = null,
+        map_bg = null;
 
+      if (maps.is_loading(current_map.id)) {
+        return false;
+      }
+
+      layers = current_map.layers;
+      map_bg = {
+        "id": "bg1",
+        "img": "bg",
+        "x": 0,
+        "y": 0,
+        "x_scale": 12,
+        "y_scale": 12,
+        "x_size": current_map.width,
+        "y_size": current_map.height,
+        "layer": -99,
+      };
       current_map_id = current_map.id;
 
       if (current_map.loading && !entities) {
@@ -1640,10 +1652,6 @@ let EntityManager = (function () {
         target = null,
         i = null;
 
-      if (stale_entities()) {
-        setup_entities();
-      }
-
       for (i in entities) {
         target = entities[i];
         if (target.active !== false && entity.id !== target.id && physics.collide(entity, target)) {
@@ -1656,10 +1664,6 @@ let EntityManager = (function () {
     update = function (delta, manager) {
       let ei = null,
         ti = null;
-
-      if (stale_entities()) {
-        setup_entities();
-      }
 
       entities = get_entities();
       for (ei in entities) {
