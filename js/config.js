@@ -50,7 +50,7 @@ let config_spec = {
     "top_margin": 100,
     "bottom_margin": 100,
   },
-  "initial_map_id": "intro",
+  "initial_map_id": "game",
   "maps": {
     "to_load": [
       "intro",
@@ -114,12 +114,237 @@ let config_spec = {
     },
     {
       "type": "image",
-      "url": "resources/images/tileset.png",
-      "id": "tileset",
+      "url": "resources/images/reticle_black.png",
+      "id": "reticle_black",
       "source_x": 0,
       "source_y": 0,
-      "source_width": 480,
-      "source_height": 256,
+      "source_width": 32,
+      "source_height": 32,
     },
+    {
+      "type": "image",
+      "url": "resources/images/reticle_red.png",
+      "id": "reticle_red",
+      "source_x": 0,
+      "source_y": 0,
+      "source_width": 32,
+      "source_height": 32,
+    },
+    {
+      "type": "image",
+      "url": "resources/images/reticle_green.png",
+      "id": "reticle_green",
+      "source_x": 0,
+      "source_y": 0,
+      "source_width": 32,
+      "source_height": 32,
+    },
+    {
+      "type": "image",
+      "url": "resources/images/tileset.png",
+      "id":"grass_rm2k",
+      "source_x": 304,
+      "source_y": 48,
+      "source_width": 16,
+      "source_height": 16,
+    },
+    {
+      "id": "brush",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 64,
+      "source_y": 160,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "dirt_rm2k",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 352,
+      "source_y": 48,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "mountains",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 64,
+      "source_y": 224,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "pave_stone",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 208,
+      "source_y": 80,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "purple_walk_1",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 192,
+      "source_y": 0,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "purple_walk_2",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 192,
+      "source_y": 16,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "purple_walk_3",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 208,
+      "source_y": 0,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "purple_walk_4",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 208,
+      "source_y": 16,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "sand",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 160,
+      "source_y": 32,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "snow",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 304,
+      "source_y": 96,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "tree",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 304,
+      "source_y": 128,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "trees",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 16,
+      "source_y": 224,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+      "id": "water",
+      "source_height": 16,
+      "source_width": 16,
+      "source_x": 16,
+      "source_y": 64,
+      "type": "image",
+      "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "barrel",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 400,
+        "source_y": 144,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "bush",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 288,
+        "source_y": 144,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "dead_tree",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 320,
+        "source_y": 128,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "gem",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 448,
+        "source_y": 16,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "gravel",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 192,
+        "source_y": 128,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "hill",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 48,
+        "source_y": 192,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "shards",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 432,
+        "source_y": 48,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "small_tree",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 0,
+        "source_y": 192,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    },
+    {
+        "id": "stump",
+        "source_height": 16,
+        "source_width": 16,
+        "source_x": 336,
+        "source_y": 128,
+        "type": "image",
+        "url": "resources/images/tileset.png"
+    }
   ],  // resources array
 };    // config object
