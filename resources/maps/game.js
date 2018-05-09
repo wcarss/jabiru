@@ -1,7 +1,7 @@
 (function () {
   let scripts = game_manager.get_scripts();
-  let map_x_size = 100;
-  let map_y_size = 100;
+  let map_x_size = 80;
+  let map_y_size = 80;
   let tile_x_size = 32;
   let tile_y_size = 32;
   let monster_count = 3;
@@ -35,12 +35,10 @@
         let entity_manager = manager.get('entity');
         let camera_manager = manager.get('camera');
         let x = 0, y = 0;
+        let random_tiles = null;
+        let generated_tiles = null;
         let big_images = [
         ];
-/* original list:        let small_images = [
-          "grass_rm2k", "water", "sand", "purple_walk_1", "purple_walk_2", "purple_walk_3", "purple_walk_4", "pave_stone", "mountains", "dirt_rm2k", "brush", "snow", "tree", "trees", "water", "barrel", "bush", "dead_tree", "gem", "gravel", "hill", "shards", "small_tree", "stump"
-        ];
-*/
         let small_images = [
           "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k",
           "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k",
@@ -53,20 +51,29 @@
           "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k",
           "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k",
           "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k",
-          "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k", "grass_rm2k",
-          "brush", "brush",
-          "brush", "brush",
-          "brush", "brush",
-          "water", "dirt_rm2k",
-          "pave_stone", "tree",
-          "barrel", "bush", "dead_tree", "hill", "small_tree", "stump"
+          "dirt_rm2k",
+          "dirt_rm2k",
+          "pave_stone",
+          "tree",
+          "water",
+          "brush",
+          "barrel", "stump",
+          "barrel", "stump"
         ];
         let image_names = big_images.concat(small_images);
+
+//      image_names.splice(image_names.indexOf("pave_stone"), 1);
+//      image_names.splice(image_names.indexOf("tree"), 1);
+//      image_names.splice(image_names.indexOf("brush"), 1);
+//      image_names.splice(image_names.indexOf("water"), 1);
+
         let image_name = null;
         let x_scale = 0, y_scale = 0;
         let hits = null, hit = null, hit_index = 0;
         let monster_x = 0, monster_y = 0, monster = null;
 
+        let road_start = 10;
+        random_tiles = {};
         for (i = 0; i < map.x_size; i++) {
           for (j = 0; j < map.y_size; j++) {
             x = i * map.tile_x_size;
@@ -79,11 +86,12 @@
               x_scale = map.tile_x_size / 64;
               y_scale = map.tile_y_size / 64;
             }
-            console.log("image name is: " + image_name);
-            console.log("adding tile_"+ i + "_" + j +" at (" + x + ", " + y + ")");
+
             tile = {
               'x': x,
               'y': y,
+              'tile_x': i,
+              'tile_y': j,
               'x_scale': x_scale,
               'y_scale': y_scale,
               'x_size': map.tile_x_size,
@@ -93,13 +101,14 @@
               'layer': 1.5,
               'id': 'tile_' + i + "_" + j,
               'img': image_name,
+              'type': image_name,
               'x_acceleration': 0,
               'y_acceleration': 0,
               'update': function (delta, manager) {
                 let entity_manager = manager.get('entity');
               }
             };
-            entity_manager.add_entity(tile);
+            random_tiles[get_key(i, j)] = tile;
 
             if (["tree", "barrel", "bush", "dead_tree", "small_tree", "stump"].includes(image_name)) {
               tile = {
@@ -114,24 +123,88 @@
                 'layer': 1.3,
                 'id': 'tile_' + i + "_" + j + "_base",
                 'img': "grass_rm2k",
+                'type': "grass_rm2k",
                 'x_acceleration': 0,
                 'y_acceleration': 0,
                 'update': function (delta, manager) {
                   let entity_manager = manager.get('entity');
                 }
               };
-              entity_manager.add_entity(tile);
+              // step 1 of 3: uncomment this to show seed map instead
+              //entity_manager.add_entity(tile);
             }
           }
         }
 
-        player.x = random_int(map_x_size) * map.tile_x_size;
-        player.y = random_int(map_y_size) * map.tile_y_size;
+        let features = {
+          "pave_stone": {
+            x: 0,
+            y: 25,
+            width: map.x_size,
+            height: 2,
+            id: "pave_stone"
+          },
+          "water": {
+            x: 0, y: 0,
+            width: 20,
+            height: 20,
+            id: "water"
+          },
+          "brush": {
+            x: 40, y: 30,
+            width: 30,
+            height: 30,
+            id: "brush"
+          },
+          "tree": {
+            x: 0, y: 30,
+            width: 40,
+            height: 15,
+            id: "tree"
+          }
+        };
+        let k = null;
+        for (k in features) {
+          feature = features[k];
+          for (i = feature.x; i < feature.x+feature.width; i++) {
+            for (j = feature.y; j < feature.y+feature.height; j++) {
+              random_tiles[get_key(i, j)] = {
+                'x': i*map.tile_x_size,
+                'y': j*map.tile_y_size,
+                'tile_x': i,
+                'tile_y': j,
+                'x_scale': x_scale,
+                'y_scale': y_scale,
+                'x_size': map.tile_x_size,
+                'y_size': map.tile_y_size,
+                'x_velocity': 0,
+                'y_velocity': 0,
+                'layer': 1.5,
+                'id': 'tile_' + i + "_" + j,
+                'img': feature.id,
+                'type': feature.id,
+                'x_acceleration': 0,
+                'y_acceleration': 0,
+                'update': function (delta, manager) {
+                  let entity_manager = manager.get('entity');
+                }
+              };
+              // step 2 of 3: uncomment this to show seed map instead
+              //entity_manager.remove_entity(tile.id);
+              //entity_manager.add_entity(random_tiles[get_key(i, j)]);
+            }
+          }
+        }
+
+        // random placement is distracting right now
+        player.x = 5*map.tile_x_size // random_int(map_x_size) * map.tile_x_size;
+        player.y = 5*map.tile_y_size // random_int(map_y_size) * map.tile_y_size;
         entity_manager.move_entity(player, player.x, player.y);
         camera_manager.center(player.x, player.y);
 
+        // omitted for now: monsters
         // monsters
-        for (i = 0; i < monster_count; i++) {
+/*        for (i = 0; i < monster_count; i++) {
           monster_x = random_int(map_x_size)*map.tile_x_size,
           monster_y = random_int(map_y_size)*map.tile_y_size,
 
@@ -228,6 +301,62 @@
             }
           };
           entity_manager.add_entity(monster);
+        }*/
+
+        // step 3 of 3: comment from here to end of init function to see seed map instead
+        results = wavefunction_collapse(random_tiles, map_x_size, map_y_size, 250, 100);
+        for (i = 0; i < results.x_size; i++) {
+          for (j = 0; j < results.y_size; j++) {
+            if (small_images.includes(image_name)) {
+              x_scale = 2;
+              y_scale = 2;
+            } else {
+              x_scale = map.tile_x_size / 64;
+              y_scale = map.tile_y_size / 64;
+            }
+            entity_manager.add_entity({
+              'x': i*map.tile_x_size,
+              'y': j*map.tile_y_size,
+              'tile_x': i,
+              'tile_y': j,
+              'x_scale': x_scale,
+              'y_scale': y_scale,
+              'x_size': map.tile_x_size,
+              'y_size': map.tile_y_size,
+              'x_velocity': 0,
+              'y_velocity': 0,
+              'layer': 1.5,
+              'id': 'tile_' + i + "_" + j,
+              'img': results.tiles[get_key(i, j)],
+              'type': results.tiles[get_key(i, j)],
+              'x_acceleration': 0,
+              'y_acceleration': 0,
+              'update': function (delta, manager) {
+                let entity_manager = manager.get('entity');
+              }
+            }); 
+            if (["tree", "barrel", "bush", "dead_tree", "small_tree", "stump"].includes(results.tiles[get_key(i, j)])) {
+              entity_manager.add_entity({
+                'x': i*map.tile_x_size,
+                'y': j*map.tile_y_size,
+                'x_scale': x_scale,
+                'y_scale': y_scale,
+                'x_size': map.tile_x_size,
+                'y_size': map.tile_y_size,
+                'x_velocity': 0,
+                'y_velocity': 0,
+                'layer': 1.3,
+                'id': 'tile_' + i + "_" + j + "_base",
+                'img': "grass_rm2k",
+                'type': "grass_rm2k",
+                'x_acceleration': 0,
+                'y_acceleration': 0,
+                'update': function (delta, manager) {
+                  let entity_manager = manager.get('entity');
+                }
+              });
+            }
+          }
         }
 
         console.log("map " + this.id + ": initialized");
@@ -265,6 +394,8 @@
           player.x = Math.floor(coords.x / map.tile_x_size) * map.tile_x_size;
           player.y = Math.floor(coords.y / map.tile_y_size) * map.tile_y_size;
           entity_manager.move_entity(player, player.x, player.y);
+          camera_manager.center(player.x, player.y);
+          return;
         }
 
         if (last_player_move && ((performance.now() - last_player_move) < 64)) {
@@ -302,7 +433,7 @@
             continue;
           }
 
-          if (hit.img === "tree" || hit.img === "water" || hit.img == "barrel" || hit.img === "stump" || hit.type === "bound") {
+          if (hit.img === "tree" || hit.img == "barrel" || hit.img === "stump" || hit.type === "bound") {
             console.log("hit " + hit.img + ": " + hit.x + ", " + hit.y);
             console.log("player: " + player.x + ", " + player.y + ", last: " + player.last_x + ", " + player.last_y);
             player.x = player.last_x;
@@ -330,50 +461,6 @@
       },
       "layers": [
         [
-          {
-            "id": "grass1",
-            "img": "grass",
-            "x": 0,
-            "y": 0,
-            "x_scale": 1,
-            "y_scale": 1,
-            "x_size": 64,
-            "y_size": 64,
-            "layer": 0,
-          },
-          {
-            "id": "grass2",
-            "img": "grass",
-            "x": 64,
-            "y": 0,
-            "x_scale": 1,
-            "y_scale": 1,
-            "x_size": 64,
-            "y_size": 64,
-            "layer": 0,
-          },
-          {
-            "id": "water1",
-            "img": "water",
-            "x": 128,
-            "y": 0,
-            "x_scale": 1,
-            "y_scale": 1,
-            "x_size": 64,
-            "y_size": 64,
-            "layer": 0,
-          },
-          {
-            "id": "dirt1",
-            "img": "dirt",
-            "x": 0,
-            "y": 64,
-            "x_scale": 1,
-            "y_scale": 1,
-            "x_size": 64,
-            "y_size": 64,
-            "layer": 0,
-          },
         ]
       ]
     }
