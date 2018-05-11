@@ -77,10 +77,10 @@ let SelectionList = function () {
       level = node.can_be.length;
 
       if (!this.list[level]) {
-        this.list[level] = [];
+        this.list[level] = {};
       }
 
-      this.list[level].push(node.id);
+      this.list[level][node.id] = true;
     },
     remove: function (node) {
       let level = 0;
@@ -92,15 +92,55 @@ let SelectionList = function () {
       }
 
       level = node.can_be.length;
-      index = this.list[level].indexOf(node.id);
-      this.list[level].splice(index, 1);
-
-      if (this.list[level].length === 0) {
-        delete this.list[level];
-      }
+// this is the slow part!
+// ideas:
+//   arrays w/ indexOf
+//     - very slow searches
+//     - fast-ish insertion
+//     - O(N) deletion
+//   a binary tree
+//     - yikes levels of code
+//     - logN insertion (good)
+//     - logN deletion (good)
+//     - random keys ... still slow!
+//   a dictionary: --- did this!!
+//     - easy
+//     - O(1) insertion
+//     - O(1) deletion
+//     - doesn't get random keys easily
+//          - this ended up not being as big a deal as expected
+//              - my reasoning as to why:
+//                  - only choose a random node once per cycle (vs 4 indexOfs)
+//                  - object.keys() is faster than I thought
+//                  - random node and thus keys enumeration is always from
+//                    lowest key bucket, which is rarely the largest bucket,
+//                    while indexOfs are often (statistically speaking, and
+//                    practically speaking!) from the largest bucket.
+//                  - so, fewer calls under better circumstances of a faster
+//                    native method resulted in: much speedup. Like 10-20s of
+//                    load time cut out!
+//   arrays w/ a splice-point stored on-node at time of addition
+//     - whenever I remove nodes, all past splice-points on nodes farther into the array become invalid
+//       - which introduces an O(N) action
+//     - rather than splicing, keeping "holes" in the array:
+//          - random generation gets bad
+//
+//   what about: keeping the "most constraint" number
+//   as I modify nodes' constraints I check if their new # is lower
+//   if so I put them in an array, and I always make random picks out of the array
+//   if not I don't care
+//   when I observe a node I pop it from the array
+//
+//
+//                  hmmmmm
+//
+//
+//      trying dictionaries and object.keys first
+//
+      delete this.list[level][node.id];
     },
     next: function () {
-      let keys = Object.keys(this.list).sort();
+      let keys = Object.keys(this.list);
       let lowest_key = null;
 
       if (keys.length === 0) {
@@ -110,12 +150,18 @@ let SelectionList = function () {
 
       lowest_key = keys[0];
 
-      if (this.list[lowest_key].length === 0) {
+      let list_keys = Object.keys(this.list[lowest_key]);
+
+      if (list_keys.length === 0) {
         delete this.list[lowest_key];
         return this.next();
       }
 
-      return array_random(this.list[lowest_key]);
+      let random_key = array_random(list_keys);
+      if (random_key === undefined) {
+        debugger
+      }
+      return random_key;
     }
   };
 };
@@ -193,22 +239,10 @@ let Node = function (x, y, global_frequency_distribution, constraints, global_di
   let frequency = null;
   let frequency_distribution = {};
   let can_be = null;
-  let tile_index = null;
-  let dir_index = null;
-  let direction = null;
-  let directional_frequency_distribution = {};
 
   for (frequency_key in global_frequency_distribution) {
     frequency = global_frequency_distribution[frequency_key];
     frequency_distribution[frequency_key] = frequency;
-  }
-
-  for (tile_index in global_directional_frequency_distribution) {
-    directional_frequency_distribution[tile_index] = {};
-    for (dir_index in directions) {
-      direction = directions[dir_index];
-      directional_frequency_distribution[tile_index][direction] = global_directional_frequency_distribution[tile_index][direction];
-    }
   }
 
   can_be = Object.keys(frequency_distribution);
@@ -218,11 +252,11 @@ let Node = function (x, y, global_frequency_distribution, constraints, global_di
     observed: false,
     x: x,
     y: y,
-    id: "node:" + get_key(x, y),
+    id: get_key(x, y),
     cant_be: [],
     can_be: can_be,
     frequency_distribution: frequency_distribution,
-    directional_frequency_distribution: directional_frequency_distribution,
+    directional_frequency_distribution: global_directional_frequency_distribution,
     number_of_contributors: 0,
     frequency_cruft: 0,
     constraints: constraints,
@@ -261,6 +295,11 @@ let Node = function (x, y, global_frequency_distribution, constraints, global_di
         // e.g. were 4 things, now 3 things left
         // thing removed was worth 0.3
         // 0.3 / 3 = 0.1 is the additional cruft to be added to each
+        //
+        // note added at time of commit: this is very broken now and
+        // needs to be rewritten. I don't think it's contributing at all
+        // to the map in the end, but pulling it out is more risk than I
+        // want to take on before committing.
         this.frequency_cruft += this.frequency_distribution[constraint];
         this.frequency_cruft /= this.can_be.length;
         this.frequency_distribution[constraint] = 0;
@@ -283,8 +322,7 @@ let Node = function (x, y, global_frequency_distribution, constraints, global_di
       }
 
       let old_freq = 0, mult_freq = 0, new_big_freq = 0, new_freq = 0, num_contributors = 0;
-      //console.log("about to constraint node " + this.id);
-      //debugger;
+
       let sum_constraint = 0;
       for (freq_index in incoming_frequencies) {
         // skip 0-frequencies (constraints), which were already handled above
@@ -307,14 +345,12 @@ let Node = function (x, y, global_frequency_distribution, constraints, global_di
         new_freq = this.frequency_distribution[freq_index];
         num_contributors = this.number_of_contributors;
         sum_constraint += this.frequency_distribution[freq_index];
-        //debugger;
       }
 
       this.frequency_cruft = (1-sum_constraint)/this.can_be.length;
 
       if (sum_constraint+this.can_be.length*this.frequency_cruft !== 1) {
         console.log("sum_constraint is " + sum_constraint);
-        debugger;
       }
 
       this.selection_list.add(this);
@@ -329,8 +365,7 @@ let Node = function (x, y, global_frequency_distribution, constraints, global_di
         x_delta = x_deltas[direction];
         y_delta = y_deltas[direction];
         neighbour = this.nodes[get_key(this.x + x_delta, this.y + y_delta)];
-        //console.log("about to constrain in propagate");
-        //debugger;
+
         if (neighbour && neighbour.observed !== true) {
           neighbour.constrain(direction, this.value, this.directional_frequency_distribution[this.value][direction]);
         }
@@ -457,27 +492,16 @@ let build = function (tiles, x_size, y_size) {
 //
 //   ._. cool
   console.log("entering dir freq set loop:");
-  let pave_debug = false;
   for (tile_index_1 in tile_types) {
     tile_1 = tile_types[tile_index_1];
-    //console.log("  tile_1: " + tile_1);
     for (dir_index in directions) {
       direction = directions[dir_index];
-      if (tile_1 === "pave_stone" && (direction === "left" || direction === "right")) {
-        pave_debug = true;
-        console.log("    direction: " + direction);
-      } else {
-        pave_debug = false;
-      }
       for (tile_2 in dir_freqs[tile_1][direction]) {
         // todo: ewww
         if (tile_2 === "frequency_count") {
           continue;
         }
-        if (pave_debug){
-          console.log("      tile_2: " + tile_2);
-          //debugger;
-        }
+
         dir_freqs[tile_1][direction][tile_2] /= dir_freqs[tile_1][direction].frequency_count;
       }
       delete dir_freqs[tile_1][direction]['frequency_count'];
@@ -485,8 +509,6 @@ let build = function (tiles, x_size, y_size) {
   }
 
   console.log("frequencies set!");
-  console.log("frequency count: " + freq_count);
-  console.log(frequencies);
 
   // setup constraints
   
@@ -516,13 +538,19 @@ let build = function (tiles, x_size, y_size) {
   }
 };
 
-let wavefunction_collapse = function (tiles, in_x_size, in_y_size, out_x_size, out_y_size) {
+let wavefunction_collapse = function (tiles, in_x_size, in_y_size, out_x_size, out_y_size, seeds) {
   let selection = null, selection_list = new SelectionList();
-  let data = build(tiles, in_x_size, in_y_size);
+  let data = null;
   let i = 0, j = 0;
   let nodes = {}, node = null;
   let out_tiles = {};
   let coords = null;
+
+  if (seeds) {
+    data = seeds;
+  } else {
+    data = build(tiles, in_x_size, in_y_size);
+  }
 
   for (i = 0; i < out_x_size; i++) {
     for (j = 0; j < out_y_size; j++) {
@@ -540,13 +568,9 @@ let wavefunction_collapse = function (tiles, in_x_size, in_y_size, out_x_size, o
     }
   }
 
-  console.log("directional frequencies:");
-  console.log(data.dir_freqs);
   selection = selection_list.next();
-  
   while (selection !== false) {
-    coords = selection.split(":");
-    node = nodes[get_key(coords[1], coords[2])];
+    node = nodes[selection];
     node.observe();
     selection = selection_list.next();
   }
@@ -557,8 +581,10 @@ let wavefunction_collapse = function (tiles, in_x_size, in_y_size, out_x_size, o
     }
   }
 
-  //debugger;
   return {
+    frequencies: data.frequencies,
+    dir_freqs: data.dir_freqs,
+    constraints: data.constraints,
     tiles: out_tiles,
     x_size: out_x_size,
     y_size: out_y_size
