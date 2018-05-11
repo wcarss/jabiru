@@ -22,6 +22,12 @@ let config_spec = {
   "player": {
     "id": "player1",
     "img": "player",
+    "dirt_count": 0,
+    "grass_count": 0,
+    "brush_count": 0,
+    "wood_count": 0,
+    "stone_count": 0,
+    "gold_count": 0,
     "x": 10,
     "y": 10,
     "layer": 2,
@@ -344,6 +350,15 @@ let config_spec = {
         "source_y": 128,
         "type": "image",
         "url": "resources/images/tileset.png"
+    },
+    {
+        "id":"skeleton",
+        "source_height": 24,
+        "source_width": 24,
+        "source_x": 24,
+        "source_y": 202,
+        "type": "image",
+        "url":"resources/images/dragon_warrior_monsters.png"
     }
   ],  // resources array
 };    // config object
