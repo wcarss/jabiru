@@ -53,7 +53,6 @@ let config_spec = {
   "initial_map_id": "game",
   "maps": {
     "to_load": [
-      "intro",
       "game",
     ]
   },  // maps object
