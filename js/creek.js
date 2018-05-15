@@ -1986,11 +1986,12 @@ let RenderManager = (function () {
   let manager = null,
     context_manager = null,
     frames_per_second = null,
-    last_time = performance.now(),
-    current_time = performance.now(),
+    last_time = null,
     entities = null,
     resources = null,
     stored_count = null,
+    dt = 0,
+    step = 1/25,
 
     draw = function (tile, context, delta, offset) {
       let resource = resources.get_image(tile.img),
@@ -2025,28 +2026,43 @@ let RenderManager = (function () {
       context.font = text.font;
       context.fillText(text.text, x, y);
     },
-    next_frame = function () {
-      current_time = performance.now();
-      let delta = ((current_time - last_time)/1000) * frames_per_second;
-      let di = null,
+    next_frame = function (current_time) {
+      let world_offset = null,
+        draw_list = null,
+        text_list = null,
+        context = null,
+        delta = null,
+        di = null,
         ti = null;
-      last_time = current_time;
-
-      let world_offset = manager.get('camera').get_offset(),
-        draw_list = entities.get_entities(),
-        text_list = entities.get_texts(),
-        context = context_manager.get_context();
-
-      for (di in draw_list) {
-        draw(draw_list[di], context, delta, world_offset);
-      }
-      for (ti in text_list) {
-        text_draw(text_list[ti], context, delta, world_offset);
-      }
-      entities.update(delta, manager);
-      entities.load_if_needed();
 
       requestAnimationFrame(next_frame);
+      if (last_time === null) {
+        last_time = current_time;
+      }
+
+      delta = current_time - last_time;
+      dt = dt + Math.min(1, delta / 1000);
+
+      while (dt > step) {
+        dt = dt - step;
+
+        entities.update(step, manager);
+        entities.load_if_needed();
+      }
+
+      world_offset = manager.get('camera').get_offset();
+      draw_list = entities.get_entities();
+      text_list = entities.get_texts();
+      context = context_manager.get_context();
+
+      for (di in draw_list) {
+        draw(draw_list[di], context, dt, world_offset);
+      }
+      for (ti in text_list) {
+        text_draw(text_list[ti], context, dt, world_offset);
+      }
+
+      last_time = current_time;
     },
     init = function (_manager) {
       console.log("RenderManager init.");
@@ -2055,6 +2071,7 @@ let RenderManager = (function () {
       context_manager = manager.get('context');
       resources = manager.get('resource');
       entities = manager.get('entity');
+      dt = 0;
     };
 
   return function () {
