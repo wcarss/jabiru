@@ -30,7 +30,7 @@ let GameManager = (function () {
       });
 
       manager.get('audio').load_clips(manager.get('resource').get_resources()['sound']);
-      manager.get('render').next_frame();
+      requestAnimationFrame(manager.get('render').next_frame)
     };
 
   return function () {
@@ -1547,9 +1547,12 @@ let EntityManager = (function () {
         debugger;
       }
 
-      let background = quadtree_get_by_id(tree, "bg1");
-      if (background) {
-        et.push(quadtree_get_by_id(tree, "bg1"));
+      let background = null;
+      if (manager.get('map').get_map().needs_bg) {
+        background = quadtree_get_by_id(tree, "bg1");
+        if (background) {
+          et.push(background);
+        }
       }
 
       return et.sort(
@@ -1617,9 +1620,12 @@ let EntityManager = (function () {
       if (maps.is_loading()) {
         return;
       }
+
       quadtree_remove_by_id(tree, entity.id);
+
       entity.x = x;
       entity.y = y;
+
       quadtree_insert(tree, entity);
     },
     add_entity = function (entity) {
@@ -1651,10 +1657,13 @@ let EntityManager = (function () {
     collide = function (entity) {
       let collisions = [],
         target = null,
-        i = null;
+        i = null,
+        local_entities = null;
 
-      for (i in entities) {
-        target = entities[i];
+      local_entities = quadtree_get_by_range(tree, entity.x-entity.x_size, entity.y-entity.y_size, entity.x+2*entity.x_size, entity.y+2*entity.y_size);
+
+      for (i in local_entities) {
+        target = local_entities[i];
         if (target.active !== false && entity.id !== target.id && physics.collide(entity, target)) {
           collisions.push(target);
         }
