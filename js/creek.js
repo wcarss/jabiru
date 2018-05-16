@@ -459,6 +459,9 @@ let ContextManager = (function () {
 
       stage = document.getElementById("stage");
       canvas = document.createElement("canvas");
+
+      stage.style.overflow = "hidden";
+      canvas.style.overflow = "hidden";
       canvas.id = canvas_id;
       canvas.style.display = "block";
 
@@ -480,6 +483,7 @@ let ContextManager = (function () {
       set_canvas: set_canvas,
       get_width: get_width,
       get_height: get_height,
+      resize: resize,
     };
   };
 })();
@@ -590,8 +594,8 @@ let CameraManager = (function () {
 
       let bounds = map_manager.get_bounds();
 
-      x = clamp(x, bounds.x, bounds.width);
-      y = clamp(y, bounds.y, bounds.height);
+      x = clamp(x, bounds.x, bounds.width-camera.width);
+      y = clamp(y, bounds.y, bounds.height-camera.height);
 
       camera.x = x;
       camera.y = y;
@@ -1074,8 +1078,8 @@ let MapManager = (function () {
       return {
         x: 0,
         y: 0,
-        width: map.width,
-        height: map.height,
+        width: map.width || map.x_size,
+        height: map.height || map.y_size,
       };
     },
     change_maps = function (map_id) {
@@ -1632,7 +1636,7 @@ let EntityManager = (function () {
       quadtree_insert(tree, entity);
     },
     remove_entity = function (id) {
-      quadtree_remove_by_id(tree, id);
+      return quadtree_remove_by_id(tree, id);
     },
     add_text = function (text) {
       text.offset_type = text.offset_type || "camera";
@@ -1996,7 +2000,15 @@ let RenderManager = (function () {
     draw = function (tile, context, delta, offset) {
       let resource = resources.get_image(tile.img),
         source_x = 0, source_y = 0, source_width = 0, source_height = 0,
+        x_pos = 0, y_pos = 0,
         saved_style = null;
+
+      x_pos = tile.x - offset.x;
+      y_pos = tile.y - offset.y
+      if (tile.offset_type === "camera") {
+        x_pos = tile.ui_x;
+        y_pos = tile.ui_y;
+      }
 
       if (resource && tile.active !== false) {
         source_x = tile.source_x || resource.source_x;
@@ -2008,24 +2020,20 @@ let RenderManager = (function () {
           resource.img,
           source_x, source_y,
           source_width, source_height,
-          tile.x-offset.x, tile.y-offset.y,
+          x_pos, y_pos,
           tile.x_scale * source_width,
           tile.y_scale * source_height
         );
       } else if (tile.render_type === "fillRect") {
         saved_style = context.fillStyle;
         context.fillStyle = tile.img;
-        context.fillRect(
-          tile.x-offset.x, tile.y-offset.y, tile.x_size, tile.y_size
-        );
+        context.fillRect(x_pos, y_pos, tile.x_size, tile.y_size);
         context.fillStyle = saved_style;
       } else if (tile.render_type === "strokeRect") {
-        saved_style = context.fillStyle;
+        saved_style = context.strokeStyle;
         context.strokeStyle = tile.img;
-        context.strokeRect(
-          tile.x-offset.x, tile.y-offset.y, tile.x_size, tile.y_size
-        );
-        context.fillStyle = saved_style;
+        context.strokeRect(x_pos, y_pos, tile.x_size, tile.y_size);
+        context.strokeStyle = saved_style;
       }
     },
     text_draw = function (text, context, delta, offset) {
