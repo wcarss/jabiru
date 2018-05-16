@@ -1,11 +1,14 @@
+"use strict";
+
 (function () {
   let scripts = game_manager.get_scripts();
   let map_x_size = 43;
   let map_y_size = 21;
   let tile_x_size = 32;
   let tile_y_size = 32;
-  let monster_count = 15;
+  let monster_count = 60;
   let monster_health = 5;
+  let treasure_health = 10;
   let throttled_change_to_intro = throttle(
     function (map_manager) {
       map_manager.change_maps('intro');
@@ -37,14 +40,8 @@
         let entity_manager = manager.get('entity');
         let camera_manager = manager.get('camera');
         let context_manager = manager.get('context');
-        let real_map_width = context_manager.get_width();
-        let real_map_height = context_manager.get_height();
-        this.x_size = Math.ceil(real_map_width / tile_x_size);
-        this.y_size = Math.ceil(real_map_height / tile_y_size);
-        map_x_size = this.x_size;
-        map_y_size = this.y_size;
-        this.height = tile_y_size * this.y_size;
-        this.width = tile_x_size * this.x_size;
+        let canvas_width = context_manager.get_width();
+        let canvas_height = context_manager.get_height();
         let x = 0, y = 0;
         let use_random_tiles = false;
         let random_tiles = null;
@@ -82,8 +79,24 @@
         let image_name = null;
         let x_scale = 0, y_scale = 0;
         let hits = null, hit = null, hit_index = 0;
-        let monster_x = 0, monster_y = 0, monster_tile = null, monster_try_count = 0, monster = null;
+        let monster_x = 0, monster_y = 0, monster_tile = null, monster_try_count = 0, monster = null, monster_full_health = null, monster_remaining_health = null;
+        let treasure_full_health = null, treasure_remaining_health = null;
         let road_start = 10;
+
+        // some camera and map size adjustments
+        this.x_size = Math.ceil(canvas_width / tile_x_size);
+        this.y_size = Math.ceil(canvas_height / tile_y_size);
+        canvas_width = this.x_size * tile_x_size;
+        canvas_height = this.y_size * tile_y_size;
+        context_manager.resize(null, canvas_width, canvas_height);
+        camera_manager.resize(canvas_width, canvas_height);
+        this.x_size *= 2;
+        this.y_size *= 2;
+        map_x_size = this.x_size;
+        map_y_size = this.y_size;
+        this.width = this.x_size * tile_x_size;
+        this.height = this.y_size * tile_y_size;
+
 
         // some map specific player setup
         player.default_move_cooldown = 20;
@@ -221,9 +234,10 @@
           }
         }
 
-        results = wavefunction_collapse(random_tiles, map_x_size, map_y_size, map_x_size, map_y_size, this.generation_seed);
+        let results = wavefunction_collapse(random_tiles, map_x_size, map_y_size, map_x_size, map_y_size, this.generation_seed);
 
         let this_map = manager.get('map').get_map();
+        let tile = null;
         this_map.generated_seed = results;
 
         for (i = 0; i < results.x_size; i++) {
@@ -251,15 +265,51 @@
               'id': 'tile_' + i + "_" + j,
               'img': results.tiles[get_key(i, j)],
               'type': results.tiles[get_key(i, j)],
-              'x_acceleration': 0,
-              'y_acceleration': 0,
-              'update': function (delta, manager) {
-                let entity_manager = manager.get('entity');
-              }
             };
      
             if (tile.type === "treasure") {
+              treasure_full_health = {
+                'x': tile.x,
+                'y': tile.y-1,
+                'x_size': tile.x_size,
+                'y_size': 3,
+                'layer': 1.8,
+                'id': tile.id + "_full_health",
+                'type': "health",
+                'img': "rgb(250, 10, 10)",
+                'render_type': "fillRect"
+              };
+
+              treasure_remaining_health = {
+                'x': tile.x,
+                'y': tile.y-1,
+                'x_size': tile.x_size,
+                'y_size': 3,
+                'health_left': treasure_health,
+                'full_health': treasure_health,
+                'layer': 1.9,
+                'id': tile.id + "_health_left",
+                'type': "health",
+                'img': "rgb(10, 250, 10)",
+                'render_type': "fillRect",
+                'update': function (delta, manager) {
+                  this.x_size = Math.floor(this.health_left / this.full_health * tile_x_size);
+                }
+              };
+
               tile.gold_count = 5+random_int(15);
+              tile.hits = treasure_health;
+
+              tile.health_bar = [
+                treasure_full_health, treasure_remaining_health
+              ];
+
+              tile.update = function (delta, manager) {
+                this.health_bar[1].health_left = this.hits;
+              };
+
+              entity_manager.add_entity(treasure_full_health);
+              entity_manager.add_entity(treasure_remaining_health);
             }
             entity_manager.add_entity(tile);
 
@@ -305,6 +355,35 @@
           monster_x *= map.tile_x_size;
           monster_y *= map.tile_y_size;
 
+          monster_full_health = {
+            'x': monster_x,
+            'y': monster_y-1,
+            'x_size': 32,
+            'y_size': 3,
+            'layer': 1.8,
+            'id': 'monster_' + i + "_full_health",
+            'type': "health",
+            'img': "rgb(250, 10, 10)",
+            'render_type': "fillRect"
+          };
+
+          monster_remaining_health = {
+            'x': monster_x,
+            'y': monster_y-1,
+            'x_size': 32,
+            'y_size': 3,
+            'health_left': monster_health,
+            'full_health': monster_health,
+            'layer': 1.9,
+            'id': 'monster_' + i + "_health_left",
+            'type': "health",
+            'img': "rgb(10, 250, 10)",
+            'render_type': "fillRect",
+            'update': function (delta, manager) {
+              this.x_size = Math.floor(this.health_left / this.full_health * 32);
+            }
+          };
+
           monster = {
             'x': monster_x,
             'y': monster_y,
@@ -316,6 +395,10 @@
             'y_size': 24,
             'x_velocity': 0,
             'y_velocity': 0,
+            'health_bar': [
+              monster_full_health, monster_remaining_health
+            ],
+            'hits': monster_health,
             'layer': 2,
             'gold_count': 1,
             'id': 'monster_' + i,
@@ -327,10 +410,20 @@
               let entity_manager = manager.get('entity');
               let sound_manager = manager.get('audio');
               let player = manager.get('player').get_player();
-              let distance_x = Math.abs(player.tile_x - this.tile_x);
-              let distance_y = Math.abs(player.tile_y - this.tile_y);
+              let x_bias = 0, y_bias = 0, x_change = 0, y_change = 0;
+              let distance_x = Math.abs(player.x/tile_x_size - this.x/tile_x_size);
+              let distance_y = Math.abs(player.y/tile_y_size - this.y/tile_y_size);
               let taxicab_distance = distance_x + distance_y;
               let default_bias = 0.5, bias_factor = 0;
+              let hits = null, hit = null, hit_index = 0;
+
+              this.health_bar[0].x = this.x;
+              this.health_bar[0].y = this.y-1;
+              this.health_bar[1].x = this.x;
+              this.health_bar[1].y = this.y-1;
+              this.health_bar[1].health_left = this.hits;
+              entity_manager.move_entity(this.health_bar[0], this.health_bar[0].x, this.health_bar[0].y);
+              entity_manager.move_entity(this.health_bar[1], this.health_bar[1].x, this.health_bar[1].y);
 
               if (this.last_move && (performance.now() - this.last_move < 400)) {
                 return;
@@ -351,16 +444,16 @@
                 x_bias = 0;
                 y_bias = 0;
 
-                if (taxicab_distance < 5) {
+                if (taxicab_distance < 15) {
                   bias_factor = 2;
-                } else if (taxicab_distance < 10) {
+                } else if (taxicab_distance < 30) {
                   bias_factor = 1;
-                } else if (taxicab_distance < 15) {
+                } else if (taxicab_distance < 50) {
+                  bias_factor = 0.8;
+                } else if (taxicab_distance < 70) {
                   bias_factor = 0.5;
-                } else if (taxicab_distance < 25) {
-                  bias_factor = 0.25;
                 } else {
-                  bias_factor = 0.1;
+                  bias_factor = 0.25;
                 }
 
                 if (player.x < this.x) {
@@ -412,9 +505,18 @@
                     continue;
                   }
 
-                  if (hit.img === "tree" || hit.img === "water" || hit.img == "barrel" || hit.img === "stump" || hit.type === "bound" || hit.id === "player1") {
+                  if (hit.img === "tree" || hit.img === "water" || hit.img == "barrel" || hit.img === "stump" || hit.type === "bound") {
                     this.x = this.last_x;
                     this.y = this.last_y;
+                  } else if (hit.id === "player1") {
+                    this.x = this.last_x;
+                    this.y = this.last_y;
+                    if (this.attacking) {
+                      sound_manager.play('hit2');
+                      if (Math.random() > 0.8) {
+                        hit.health -= 1;
+                      }
+                    }
                   } else if (hit.type === "monster") {
                     this.x = this.last_x;
                     this.y = this.last_y;
@@ -434,8 +536,10 @@
                         hit.gold_count = 0;
                         manager.get('map').get_map().monster_count -= 1;
                         entity_manager.remove_entity(hit.id);
+                        entity_manager.remove_entity(hit.id+"_full_health");
+                        entity_manager.remove_entity(hit.id+"_health_left");
                         sound_manager.play('monster_dead');
-                      } else if (Math.random() > 0.8) {
+                      } else if (Math.random() > 0.75) {
                         sound_manager.play('hit2');
                       } else {
                         sound_manager.play('monster');
@@ -451,11 +555,18 @@
                       if (hit.hits <= 0) {
                         this.gold_count += hit.gold_count;
                         entity_manager.remove_entity(hit.id);
+                        entity_manager.remove_entity(hit.id+"_full_health");
+                        entity_manager.remove_entity(hit.id+"_health_left");
                         sound_manager.play('pickup');
                       } else {
+                        this.x = this.last_x;
+                        this.y = this.last_y;
                         sound_manager.play('hit2');
                       }
                       this.attacking = false;
+                    } else {
+                      this.x = this.last_x;
+                      this.y = this.last_y;
                     }
                   }
                 }
@@ -464,6 +575,8 @@
             }
           };
           entity_manager.add_entity(monster);
+          entity_manager.add_entity(monster_full_health);
+          entity_manager.add_entity(monster_remaining_health);
           this.monster_count += 1;
         }
 
@@ -480,15 +593,23 @@
 
         entity_manager.add_entity({
           id: 'text_backer',
+          offset_type: "camera",
           x: 10,
           y: 15,
+          ui_x: 10,
+          ui_y: 15,
           x_size: 880,
           y_size: 30,
           x_scale: 1,
           y_scale: 1,
           img: "rgba(10, 10, 10, 0.6)",
           render_type: "fillRect",
-          layer: 2,
+          layer: 2.5,
+          update: function (delta, manager) {
+            let entity_manager = manager.get('entity');
+            let offset = manager.get('camera').get_offset();
+            entity_manager.move_entity(this, this.ui_x+offset.x, this.ui_y+offset.y);
+          }
         });
 
         entity_manager.add_text({
@@ -628,7 +749,8 @@
         let camera_manager = manager.get('camera');
         let player = manager.get('player').get_player();
         let hits = null, hit_index = 0, hit = null;
-        let up = false, down = false, left = false, right = false;
+        let up = false, down = false, left = false, right = false,
+          attacking = false, digging = false, planting = false;
         let text_out = null;
         let this_map = manager.get('map').get_map();
         let stage = null;
@@ -636,9 +758,10 @@
         let attack_time_length = 50;
         let plant_time_length = 50;
         let dig_time_length = 50;
+        let offset = null;
 
         if (control_manager.keys('Escape')) {
-          if (player.last_toggled_help && (performance.now() - player.last_toggled_text < 200)) {
+          if (player.last_toggled_help && (performance.now() - player.last_toggled_help < 200)) {
             return;
           }
 
@@ -653,10 +776,16 @@
             entity_manager.remove_text("help_text_3");
           } else {
             player.showing_help = true;
+
+            offset = manager.get('camera').get_offset();
+
             entity_manager.add_entity({
               id: "help_text_backer",
-              x: 200,
-              y: 185,
+              offset_type: "camera",
+              x: 200+offset.x,
+              y: 185+offset.y,
+              ui_x: 200,
+              ui_y: 185,
               x_size: 350,
               y_size: 130,
               x_scale: 1,
@@ -664,6 +793,11 @@
               layer: 2.2,
               img: "rgba(10, 10, 10, 0.8)",
               render_type: "fillRect",
+              update: function (delta, manager) {
+                let entity_manager = manager.get('entity');
+                let offset = manager.get('camera').get_offset();
+                entity_manager.move_entity(this, this.ui_x+offset.x, this.ui_y+offset.y);
+              }
             });
             entity_manager.add_text({
               id: "help_text_0",
@@ -745,7 +879,7 @@
           player.x = Math.floor(coords.x / map.tile_x_size) * map.tile_x_size;
           player.y = Math.floor(coords.y / map.tile_y_size) * map.tile_y_size;
           entity_manager.move_entity(player, player.x, player.y);
-          //camera_manager.center(player.x, player.y);
+          camera_manager.center(player.x, player.y);
           return;
         }
 
@@ -912,6 +1046,8 @@
               hit.hits -= 1;
               if (hit.hits <= 0) {
                 entity_manager.remove_entity(hit.id);
+                entity_manager.remove_entity(hit.id+"_full_health");
+                entity_manager.remove_entity(hit.id+"_health_left");
                 player.gold_count += hit.gold_count;
                 manager.get('map').get_map().monster_count -= 1;
                 sound_manager.play('monster_dead');
@@ -938,6 +1074,8 @@
               if (hit.hits <= 0) {
                 player.gold_count += hit.gold_count;
                 entity_manager.remove_entity(hit.id);
+                entity_manager.remove_entity(hit.id+"_full_health");
+                entity_manager.remove_entity(hit.id+"_health_left");
                 player.attacking = false;
                 sound_manager.play('pickup');
               } else {
@@ -948,14 +1086,14 @@
         }
 
         entity_manager.move_entity(player, player.x, player.y);
-        //camera_manager.center(player.x, player.y);
+        camera_manager.center(player.x, player.y);
       },
       "layers": [
         [
         ]
       ],
       "generation_seed": {
-        "dir_freqs":{"treasure":{"above":{"water":0.16,"grass_rm2k":0.2,"stump":0.16,"brush":0.16,"dirt_rm2k":0.16,"barrel":0.16,"treasure":0},"below":{"water":0.16,"grass_rm2k":0.2,"stump":0.16,"brush":0.16,"dirt_rm2k":0.16,"barrel":0.16,"treasure":0},"left":{"water":0.16,"grass_rm2k":0.2,"stump":0.16,"brush":0.16,"dirt_rm2k":0.16,"barrel":0.16,"treasure":0},"right":{"water":0.16,"grass_rm2k":0.2,"stump":0.16,"brush":0.16,"dirt_rm2k":0.16,"barrel":0.16,"treasure":0}},"water":{"above":{"water":0.8463251670378619,"grass_rm2k":0.12694877505567928,"stump":0.008908685968819599,"brush":0.004454342984409799,"dirt_rm2k":0.0022271714922048997,"barrel":0.0066815144766146995,"pave_stone":0.004454342984409799},"below":{"water":0.8878504672897196,"grass_rm2k":0.09579439252336448,"dirt_rm2k":0.007009345794392523,"barrel":0.004672897196261682,"pave_stone":0.004672897196261682},"left":{"water":0.8542600896860987,"grass_rm2k":0.1210762331838565,"dirt_rm2k":0.006726457399103139,"pave_stone":0.002242152466367713,"stump":0.006726457399103139,"brush":0.004484304932735426,"barrel":0.004484304932735426},"right":{"water":0.8901869158878505,"grass_rm2k":0.10514018691588785,"pave_stone":0.002336448598130841,"brush":0.002336448598130841}},"grass_rm2k":{"above":{"grass_rm2k":0.8372219207813347,"brush":0.01465002712967987,"pave_stone":0.03581117742810635,"tree":0.02224633749321758,"water":0.01112316874660879,"stump":0.023060227889310905,"barrel":0.024959305480195332,"dirt_rm2k":0.030927835051546393},"below":{"water":0.015388768898488121,"grass_rm2k":0.8331533477321814,"brush":0.01700863930885529,"pave_stone":0.03536717062634989,"tree":0.02159827213822894,"barrel":0.02591792656587473,"stump":0.02294816414686825,"dirt_rm2k":0.028617710583153346},"left":{"grass_rm2k":0.8604336043360433,"pave_stone":0.01707317073170732,"barrel":0.028184281842818428,"stump":0.024119241192411923,"dirt_rm2k":0.032520325203252036,"water":0.012195121951219513,"brush":0.013821138211382113,"tree":0.011653116531165311},"right":{"grass_rm2k":0.8546433378196501,"brush":0.01641991924629879,"water":0.014535666218034994,"pave_stone":0.0180349932705249,"barrel":0.028532974427994618,"dirt_rm2k":0.03122476446837147,"stump":0.024764468371467025,"tree":0.011843876177658143}},"brush":{"above":{"grass_rm2k":0.06673728813559322,"tree":0.001059322033898305,"dirt_rm2k":0.0031779661016949155,"barrel":0.0031779661016949155,"brush":0.9247881355932204,"stump":0.001059322033898305},"below":{"grass_rm2k":0.05732484076433121,"dirt_rm2k":0.0031847133757961785,"stump":0.005307855626326964,"water":0.0021231422505307855,"pave_stone":0.0021231422505307855,"brush":0.9267515923566879,"barrel":0.0031847133757961785},"left":{"grass_rm2k":0.06468716861081654,"stump":0.003181336161187699,"pave_stone":0.003181336161187699,"brush":0.9236479321314952,"dirt_rm2k":0.0010604453870625664,"tree":0.0021208907741251328,"water":0.0010604453870625664,"barrel":0.0010604453870625664},"right":{"stump":0.0010604453870625664,"grass_rm2k":0.05408271474019088,"water":0.0021208907741251328,"dirt_rm2k":0.0021208907741251328,"tree":0.016967126193001062,"brush":0.9236479321314952}},"pave_stone":{"above":{"pave_stone":0.3617021276595745,"grass_rm2k":0.5574468085106383,"barrel":0.01702127659574468,"dirt_rm2k":0.02127659574468085,"stump":0.01702127659574468,"tree":0.00851063829787234,"water":0.00851063829787234,"brush":0.00851063829787234},"below":{"grass_rm2k":0.5569620253164557,"pave_stone":0.35864978902953587,"dirt_rm2k":0.016877637130801686,"barrel":0.02109704641350211,"tree":0.02109704641350211,"stump":0.016877637130801686,"water":0.008438818565400843},"left":{"pave_stone":0.6896551724137931,"grass_rm2k":0.28879310344827586,"tree":0.008620689655172414,"stump":0.004310344827586207,"dirt_rm2k":0.004310344827586207,"water":0.004310344827586207},"right":{"pave_stone":0.6808510638297872,"grass_rm2k":0.2680851063829787,"dirt_rm2k":0.01702127659574468,"stump":0.00851063829787234,"water":0.00425531914893617,"barrel":0.00425531914893617,"brush":0.01276595744680851,"tree":0.00425531914893617}},"barrel":{"above":{"grass_rm2k":0.8205128205128205,"dirt_rm2k":0.02564102564102564,"pave_stone":0.042735042735042736,"tree":0.017094017094017096,"water":0.017094017094017096,"stump":0.008547008547008548,"brush":0.02564102564102564,"barrel":0.042735042735042736},"below":{"pave_stone":0.03389830508474576,"grass_rm2k":0.7796610169491526,"tree":0.01694915254237288,"stump":0.03389830508474576,"dirt_rm2k":0.0423728813559322,"brush":0.025423728813559324,"barrel":0.0423728813559322,"water":0.025423728813559324},"left":{"grass_rm2k":0.8907563025210085,"dirt_rm2k":0.01680672268907563,"barrel":0.04201680672268908,"pave_stone":0.008403361344537815,"tree":0.008403361344537815,"stump":0.03361344537815126},"right":{"grass_rm2k":0.859504132231405,"barrel":0.04132231404958678,"dirt_rm2k":0.03305785123966942,"water":0.01652892561983471,"stump":0.024793388429752067,"tree":0.01652892561983471,"brush":0.008264462809917356}},"tree":{"above":{"tree":0.8617511520737328,"grass_rm2k":0.1228878648233487,"stump":0.0030721966205837174,"dirt_rm2k":0.0015360983102918587,"barrel":0.0030721966205837174,"pave_stone":0.007680491551459293},"below":{"grass_rm2k":0.12576687116564417,"tree":0.8604294478527608,"stump":0.004601226993865031,"pave_stone":0.003067484662576687,"brush":0.0015337423312883436,"barrel":0.003067484662576687,"dirt_rm2k":0.0015337423312883436},"left":{"tree":0.897239263803681,"grass_rm2k":0.06748466257668712,"barrel":0.003067484662576687,"dirt_rm2k":0.003067484662576687,"stump":0.003067484662576687,"brush":0.024539877300613498,"pave_stone":0.0015337423312883436},"right":{"tree":0.9183673469387755,"grass_rm2k":0.06750392464678179,"pave_stone":0.0031397174254317113,"dirt_rm2k":0.004709576138147566,"barrel":0.0015698587127158557,"stump":0.0015698587127158557,"brush":0.0031397174254317113}},"stump":{"above":{"grass_rm2k":0.8095238095238095,"tree":0.02857142857142857,"brush":0.047619047619047616,"barrel":0.0380952380952381,"stump":0.02857142857142857,"dirt_rm2k":0.009523809523809525,"pave_stone":0.0380952380952381},"below":{"grass_rm2k":0.8018867924528302,"dirt_rm2k":0.05660377358490566,"tree":0.018867924528301886,"pave_stone":0.03773584905660377,"water":0.03773584905660377,"stump":0.02830188679245283,"barrel":0.009433962264150943,"brush":0.009433962264150943},"left":{"brush":0.009615384615384616,"grass_rm2k":0.8846153846153846,"pave_stone":0.019230769230769232,"barrel":0.028846153846153848,"stump":0.028846153846153848,"tree":0.009615384615384616,"dirt_rm2k":0.019230769230769232},"right":{"grass_rm2k":0.839622641509434,"pave_stone":0.009433962264150943,"water":0.02830188679245283,"brush":0.02830188679245283,"dirt_rm2k":0.009433962264150943,"tree":0.018867924528301886,"stump":0.02830188679245283,"barrel":0.03773584905660377}},"dirt_rm2k":{"above":{"grass_rm2k":0.7969924812030075,"brush":0.022556390977443608,"stump":0.045112781954887216,"pave_stone":0.03007518796992481,"water":0.022556390977443608,"dirt_rm2k":0.03759398496240601,"barrel":0.03759398496240601,"tree":0.007518796992481203},"below":{"barrel":0.022556390977443608,"grass_rm2k":0.8571428571428571,"pave_stone":0.03759398496240601,"tree":0.007518796992481203,"dirt_rm2k":0.03759398496240601,"brush":0.022556390977443608,"stump":0.007518796992481203,"water":0.007518796992481203},"left":{"grass_rm2k":0.8656716417910447,"pave_stone":0.029850746268656716,"barrel":0.029850746268656716,"stump":0.007462686567164179,"tree":0.022388059701492536,"brush":0.014925373134328358,"dirt_rm2k":0.029850746268656716},"right":{"grass_rm2k":0.8888888888888888,"water":0.022222222222222223,"barrel":0.014814814814814815,"tree":0.014814814814814815,"pave_stone":0.007407407407407408,"dirt_rm2k":0.02962962962962963,"brush":0.007407407407407408,"stump":0.014814814814814815}}},"constraints":{"water":{"above":{"tree":true},"below":{"brush":true,"tree":true,"stump":true},"left":{"tree":true},"right":{"tree":true,"barrel":true,"stump":true,"dirt_rm2k":true}},"treasure":{"above":{},"below":{},"left":{},"right":{}},"grass_rm2k":{"above":{},"below":{},"left":{},"right":{}},"brush":{"above":{"water":true,"pave_stone":true},"below":{"tree":true},"left":{},"right":{"pave_stone":true,"barrel":true}},"pave_stone":{"above":{},"below":{"brush":true},"left":{"brush":true,"barrel":true},"right":{}},"tree":{"above":{"water":true,"brush":true},"below":{"water":true},"left":{"water":true},"right":{"water":true}},"barrel":{"above":{},"below":{},"left":{"water":true,"brush":true},"right":{"pave_stone":true}},"stump":{"above":{"water":true},"below":{},"left":{"water":true},"right":{}},"dirt_rm2k":{"above":{},"below":{},"left":{"water":true},"right":{}},"treasure":{"above":{"treasure":true},"below":{"treasure":true},"left":{"treasure":true},"right":{"treasure":true}}},"frequencies":{"water":0.07015625,"grass_rm2k":0.586875,"brush":0.14,"treasure":0.0075,"pave_stone":0.03703125,"tree":0.101875,"barrel":0.01890625,"stump":0.0165625,"dirt_rm2k":0.02109375}
+        "dir_freqs":{"treasure":{"above":{"water":0.01,"grass_rm2k":0.55,"stump":0.01,"brush":0.01,"dirt_rm2k":0.01,"barrel":0.01,"treasure":0,"tree":0.4},"below":{"water":0.01,"grass_rm2k":0.55,"stump":0.01,"brush":0.01,"dirt_rm2k":0.01,"barrel":0.01,"treasure":0,"tree":0.4},"left":{"water":0.01,"grass_rm2k":0.55,"stump":0.01,"brush":0.01,"dirt_rm2k":0.01,"barrel":0.01,"treasure":0,"tree":0.4},"right":{"water":0.01,"grass_rm2k":0.55,"stump":0.01,"brush":0.01,"dirt_rm2k":0.01,"barrel":0.01,"treasure":0,"tree":0.4}},"water":{"above":{"water":0.8463251670378619,"grass_rm2k":0.12694877505567928,"stump":0.008908685968819599,"brush":0.004454342984409799,"dirt_rm2k":0.0022271714922048997,"barrel":0.0066815144766146995,"pave_stone":0.004454342984409799},"below":{"water":0.8878504672897196,"grass_rm2k":0.09579439252336448,"dirt_rm2k":0.007009345794392523,"barrel":0.004672897196261682,"pave_stone":0.004672897196261682},"left":{"water":0.8542600896860987,"grass_rm2k":0.1210762331838565,"dirt_rm2k":0.006726457399103139,"pave_stone":0.002242152466367713,"stump":0.006726457399103139,"brush":0.004484304932735426,"barrel":0.004484304932735426},"right":{"water":0.8901869158878505,"grass_rm2k":0.10514018691588785,"pave_stone":0.002336448598130841,"brush":0.002336448598130841}},"grass_rm2k":{"above":{"grass_rm2k":0.8372219207813347,"brush":0.01465002712967987,"pave_stone":0.03581117742810635,"tree":0.02224633749321758,"water":0.01112316874660879,"stump":0.023060227889310905,"barrel":0.024959305480195332,"dirt_rm2k":0.030927835051546393},"below":{"water":0.015388768898488121,"grass_rm2k":0.8331533477321814,"brush":0.01700863930885529,"pave_stone":0.03536717062634989,"tree":0.02159827213822894,"barrel":0.02591792656587473,"stump":0.02294816414686825,"dirt_rm2k":0.028617710583153346},"left":{"grass_rm2k":0.8604336043360433,"pave_stone":0.01707317073170732,"barrel":0.028184281842818428,"stump":0.024119241192411923,"dirt_rm2k":0.032520325203252036,"water":0.012195121951219513,"brush":0.013821138211382113,"tree":0.011653116531165311},"right":{"grass_rm2k":0.8546433378196501,"brush":0.01641991924629879,"water":0.014535666218034994,"pave_stone":0.0180349932705249,"barrel":0.028532974427994618,"dirt_rm2k":0.03122476446837147,"stump":0.024764468371467025,"tree":0.011843876177658143}},"brush":{"above":{"grass_rm2k":0.06673728813559322,"tree":0.001059322033898305,"dirt_rm2k":0.0031779661016949155,"barrel":0.0031779661016949155,"brush":0.9247881355932204,"stump":0.001059322033898305},"below":{"grass_rm2k":0.05732484076433121,"dirt_rm2k":0.0031847133757961785,"stump":0.005307855626326964,"water":0.0021231422505307855,"pave_stone":0.0021231422505307855,"brush":0.9267515923566879,"barrel":0.0031847133757961785},"left":{"grass_rm2k":0.06468716861081654,"stump":0.003181336161187699,"pave_stone":0.003181336161187699,"brush":0.9236479321314952,"dirt_rm2k":0.0010604453870625664,"tree":0.0021208907741251328,"water":0.0010604453870625664,"barrel":0.0010604453870625664},"right":{"stump":0.0010604453870625664,"grass_rm2k":0.05408271474019088,"water":0.0021208907741251328,"dirt_rm2k":0.0021208907741251328,"tree":0.016967126193001062,"brush":0.9236479321314952}},"pave_stone":{"above":{"pave_stone":0.3617021276595745,"grass_rm2k":0.5574468085106383,"barrel":0.01702127659574468,"dirt_rm2k":0.02127659574468085,"stump":0.01702127659574468,"tree":0.00851063829787234,"water":0.00851063829787234,"brush":0.00851063829787234},"below":{"grass_rm2k":0.5569620253164557,"pave_stone":0.35864978902953587,"dirt_rm2k":0.016877637130801686,"barrel":0.02109704641350211,"tree":0.02109704641350211,"stump":0.016877637130801686,"water":0.008438818565400843},"left":{"pave_stone":0.6896551724137931,"grass_rm2k":0.28879310344827586,"tree":0.008620689655172414,"stump":0.004310344827586207,"dirt_rm2k":0.004310344827586207,"water":0.004310344827586207},"right":{"pave_stone":0.6808510638297872,"grass_rm2k":0.2680851063829787,"dirt_rm2k":0.01702127659574468,"stump":0.00851063829787234,"water":0.00425531914893617,"barrel":0.00425531914893617,"brush":0.01276595744680851,"tree":0.00425531914893617}},"barrel":{"above":{"grass_rm2k":0.8205128205128205,"dirt_rm2k":0.02564102564102564,"pave_stone":0.042735042735042736,"tree":0.017094017094017096,"water":0.017094017094017096,"stump":0.008547008547008548,"brush":0.02564102564102564,"barrel":0.042735042735042736},"below":{"pave_stone":0.03389830508474576,"grass_rm2k":0.7796610169491526,"tree":0.01694915254237288,"stump":0.03389830508474576,"dirt_rm2k":0.0423728813559322,"brush":0.025423728813559324,"barrel":0.0423728813559322,"water":0.025423728813559324},"left":{"grass_rm2k":0.8907563025210085,"dirt_rm2k":0.01680672268907563,"barrel":0.04201680672268908,"pave_stone":0.008403361344537815,"tree":0.008403361344537815,"stump":0.03361344537815126},"right":{"grass_rm2k":0.859504132231405,"barrel":0.04132231404958678,"dirt_rm2k":0.03305785123966942,"water":0.01652892561983471,"stump":0.024793388429752067,"tree":0.01652892561983471,"brush":0.008264462809917356}},"tree":{"above":{"tree":0.8617511520737328,"grass_rm2k":0.1228878648233487,"stump":0.0030721966205837174,"dirt_rm2k":0.0015360983102918587,"barrel":0.0030721966205837174,"pave_stone":0.007680491551459293},"below":{"grass_rm2k":0.12576687116564417,"tree":0.8604294478527608,"stump":0.004601226993865031,"pave_stone":0.003067484662576687,"brush":0.0015337423312883436,"barrel":0.003067484662576687,"dirt_rm2k":0.0015337423312883436},"left":{"tree":0.897239263803681,"grass_rm2k":0.06748466257668712,"barrel":0.003067484662576687,"dirt_rm2k":0.003067484662576687,"stump":0.003067484662576687,"brush":0.024539877300613498,"pave_stone":0.0015337423312883436},"right":{"tree":0.9183673469387755,"grass_rm2k":0.06750392464678179,"pave_stone":0.0031397174254317113,"dirt_rm2k":0.004709576138147566,"barrel":0.0015698587127158557,"stump":0.0015698587127158557,"brush":0.0031397174254317113}},"stump":{"above":{"grass_rm2k":0.8095238095238095,"tree":0.02857142857142857,"brush":0.047619047619047616,"barrel":0.0380952380952381,"stump":0.02857142857142857,"dirt_rm2k":0.009523809523809525,"pave_stone":0.0380952380952381},"below":{"grass_rm2k":0.8018867924528302,"dirt_rm2k":0.05660377358490566,"tree":0.018867924528301886,"pave_stone":0.03773584905660377,"water":0.03773584905660377,"stump":0.02830188679245283,"barrel":0.009433962264150943,"brush":0.009433962264150943},"left":{"brush":0.009615384615384616,"grass_rm2k":0.8846153846153846,"pave_stone":0.019230769230769232,"barrel":0.028846153846153848,"stump":0.028846153846153848,"tree":0.009615384615384616,"dirt_rm2k":0.019230769230769232},"right":{"grass_rm2k":0.839622641509434,"pave_stone":0.009433962264150943,"water":0.02830188679245283,"brush":0.02830188679245283,"dirt_rm2k":0.009433962264150943,"tree":0.018867924528301886,"stump":0.02830188679245283,"barrel":0.03773584905660377}},"dirt_rm2k":{"above":{"grass_rm2k":0.7969924812030075,"brush":0.022556390977443608,"stump":0.045112781954887216,"pave_stone":0.03007518796992481,"water":0.022556390977443608,"dirt_rm2k":0.03759398496240601,"barrel":0.03759398496240601,"tree":0.007518796992481203},"below":{"barrel":0.022556390977443608,"grass_rm2k":0.8571428571428571,"pave_stone":0.03759398496240601,"tree":0.007518796992481203,"dirt_rm2k":0.03759398496240601,"brush":0.022556390977443608,"stump":0.007518796992481203,"water":0.007518796992481203},"left":{"grass_rm2k":0.8656716417910447,"pave_stone":0.029850746268656716,"barrel":0.029850746268656716,"stump":0.007462686567164179,"tree":0.022388059701492536,"brush":0.014925373134328358,"dirt_rm2k":0.029850746268656716},"right":{"grass_rm2k":0.8888888888888888,"water":0.022222222222222223,"barrel":0.014814814814814815,"tree":0.014814814814814815,"pave_stone":0.007407407407407408,"dirt_rm2k":0.02962962962962963,"brush":0.007407407407407408,"stump":0.014814814814814815}}},"constraints":{"water":{"above":{"tree":true},"below":{"brush":true,"tree":true,"stump":true},"left":{"tree":true},"right":{"tree":true,"barrel":true,"stump":true,"dirt_rm2k":true}},"grass_rm2k":{"above":{},"below":{},"left":{},"right":{}},"brush":{"above":{"water":true,"pave_stone":true},"below":{"tree":true},"left":{},"right":{"pave_stone":true,"barrel":true}},"pave_stone":{"above":{},"below":{"brush":true},"left":{"brush":true,"barrel":true},"right":{}},"tree":{"above":{"water":true,"brush":true},"below":{"water":true},"left":{"water":true},"right":{"water":true}},"barrel":{"above":{},"below":{},"left":{"water":true,"brush":true},"right":{"pave_stone":true}},"stump":{"above":{"water":true},"below":{},"left":{"water":true},"right":{}},"dirt_rm2k":{"above":{},"below":{},"left":{"water":true},"right":{}},"treasure":{"above":{"treasure":true},"below":{"treasure":true},"left":{"treasure":true},"right":{"treasure":true}}},"frequencies":{"water":0.07015625,"grass_rm2k":0.586875,"brush":0.147,"treasure":0.0005,"pave_stone":0.03703125,"tree":0.101875,"barrel":0.01890625,"stump":0.0165625,"dirt_rm2k":0.02109375}
       }
     }
   }
