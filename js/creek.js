@@ -2086,7 +2086,6 @@ let RenderManager = (function () {
       context_manager = manager.get('context');
       resources = manager.get('resource');
       entities = manager.get('entity');
-      dt = 0;
     };
 
   return function () {
