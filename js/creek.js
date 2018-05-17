@@ -1686,6 +1686,7 @@ let EntityManager = (function () {
         ti = null;
 
       entities = get_entities();
+
       for (ei in entities) {
         if (entities[ei].update) {
           entities[ei].update(delta, manager);
@@ -2000,8 +2001,6 @@ let RenderManager = (function () {
     entities = null,
     resources = null,
     stored_count = null,
-    dt = 0,
-    step = 1/25,
 
     draw = function (tile, context, delta, offset) {
       let resource = resources.get_image(tile.img),
@@ -2060,24 +2059,11 @@ let RenderManager = (function () {
         draw_list = null,
         text_list = null,
         context = null,
-        delta = null,
         di = null,
         ti = null;
 
-      requestAnimationFrame(next_frame);
-      if (last_time === null) {
-        last_time = current_time;
-      }
-
-      delta = current_time - last_time;
-      dt = dt + Math.min(1, delta / 1000);
-
-      while (dt > step) {
-        dt = dt - step;
-
-        entities.update(step, manager);
-        entities.load_if_needed();
-      }
+      entities.update(null, manager);
+      entities.load_if_needed();
 
       world_offset = manager.get('camera').get_offset();
       draw_list = entities.get_entities();
@@ -2085,13 +2071,13 @@ let RenderManager = (function () {
       context = context_manager.get_context();
 
       for (di in draw_list) {
-        draw(draw_list[di], context, dt, world_offset);
+        draw(draw_list[di], context, null, world_offset);
       }
       for (ti in text_list) {
-        text_draw(text_list[ti], context, dt, world_offset);
+        text_draw(text_list[ti], context, null, world_offset);
       }
 
-      last_time = current_time;
+      requestAnimationFrame(next_frame);
     },
     init = function (_manager) {
       console.log("RenderManager init.");
