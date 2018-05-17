@@ -790,6 +790,7 @@
           entity_manager.remove_text("help_text_1");
           entity_manager.remove_text("help_text_2");
           entity_manager.remove_text("help_text_3");
+          entity_manager.remove_text("help_text_4");
         } else {
           offset = manager.get('camera').get_offset();
           backer = entity_manager.get_entity("help_text_backer");
@@ -803,7 +804,7 @@
               ui_x: 200,
               ui_y: 185,
               x_size: 375,
-              y_size: 130,
+              y_size: 150,
               x_scale: 1,
               y_scale: 1,
               layer: 2.2,
@@ -822,10 +823,11 @@
           entity_manager.remove_text("help_text_1");
           entity_manager.remove_text("help_text_2");
           entity_manager.remove_text("help_text_3");
+          entity_manager.remove_text("help_text_4");
 
           entity_manager.add_text({
             id: "help_text_0",
-            text: "Controls: (Escape to show / hide these)",
+            text: "Controls: (show / hide with Escape)",
             x: 210,
             y: 210,
             offset_type: "camera",
@@ -834,7 +836,7 @@
           });
           entity_manager.add_text({
             id: "help_text_1",
-            text: "WASD or Arrows to move / attack",
+            text: "Move / Attack   -  WASD or Arrows",
             x: 210,
             y: 250,
             offset_type: "camera",
@@ -843,7 +845,7 @@
           });
           entity_manager.add_text({
             id: "help_text_2",
-            text: "Space to dash 3 squares -- dash into things!",
+            text: "Dash                  -  Hold Space and move",
             x: 210,
             y: 275,
             offset_type: "camera",
@@ -852,9 +854,18 @@
           });
           entity_manager.add_text({
             id: "help_text_3",
-            text: "Z digs tiles, X plants them",
+            text: "Dig Tile             -  z",
             x: 210,
             y: 300,
+            offset_type: "camera",
+            font: "20px sans",
+            color: "white",
+          });
+          entity_manager.add_text({
+            id: "help_text_4",
+            text: "Place Tile          -  x",
+            x: 210,
+            y: 325,
             offset_type: "camera",
             font: "20px sans",
             color: "white",
