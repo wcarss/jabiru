@@ -82,6 +82,7 @@
         let monster_x = 0, monster_y = 0, monster_tile = null, monster_try_count = 0, monster = null, monster_full_health = null, monster_remaining_health = null;
         let treasure_full_health = null, treasure_remaining_health = null;
         let road_start = 10;
+        let monster_taken = {};
 
         // some camera and map size adjustments
         this.x_size = Math.ceil(canvas_width / tile_x_size);
@@ -96,6 +97,7 @@
         map_y_size = this.y_size;
         this.width = this.x_size * tile_x_size;
         this.height = this.y_size * tile_y_size;
+        entity_manager.setup_entities();
 
 
         // some map specific player setup
@@ -344,7 +346,7 @@
             monster_y = random_int(map_y_size);
             
             monster_tile = results.tiles[get_key(monster_x, monster_y)];
-            if (monster_tile === "grass_rm2k" || monster_tile === "brush") {
+            if (monster_tile === "grass_rm2k" || monster_tile === "brush" || monster_taken[get_key(monster_x, monster_y)]) {
               break;
             }
           }
@@ -352,13 +354,15 @@
             continue;
           }
 
+          monster_taken[get_key(monster_x, monster_y)] = true;
+
           monster_x *= map.tile_x_size;
           monster_y *= map.tile_y_size;
 
           monster_full_health = {
             'x': monster_x,
             'y': monster_y-1,
-            'x_size': 32,
+            'x_size': map.tile_x_size,
             'y_size': 3,
             'layer': 1.8,
             'id': 'monster_' + i + "_full_health",
@@ -370,7 +374,7 @@
           monster_remaining_health = {
             'x': monster_x,
             'y': monster_y-1,
-            'x_size': 32,
+            'x_size': map.tile_x_size,
             'y_size': 3,
             'health_left': monster_health,
             'full_health': monster_health,
@@ -380,7 +384,7 @@
             'img': "rgb(10, 250, 10)",
             'render_type': "fillRect",
             'update': function (delta, manager) {
-              this.x_size = Math.floor(this.health_left / this.full_health * 32);
+              this.x_size = Math.floor(this.health_left / this.full_health * map.tile_x_size);
             }
           };
 
@@ -422,8 +426,11 @@
               this.health_bar[1].x = this.x;
               this.health_bar[1].y = this.y-1;
               this.health_bar[1].health_left = this.hits;
-              entity_manager.move_entity(this.health_bar[0], this.health_bar[0].x, this.health_bar[0].y);
-              entity_manager.move_entity(this.health_bar[1], this.health_bar[1].x, this.health_bar[1].y);
+
+              if (this.hits >= 0) {
+                //entity_manager.move_entity(this.health_bar[0], this.health_bar[0].x, this.health_bar[0].y);
+                //entity_manager.move_entity(this.health_bar[1], this.health_bar[1].x, this.health_bar[1].y);
+              }
 
               if (this.last_move && (performance.now() - this.last_move < 400)) {
                 return;
@@ -527,17 +534,17 @@
                       // roll for damage to player
                     }
                     if (this.attacking === true) {
-                      if (!hit.hits) {
+                      if (hit.hits === undefined) {
                         hit.hits = monster_health;
                       }
                       hit.hits -= 1;
                       if (hit.hits <= 0) {
                         this.gold_count += hit.gold_count;
                         hit.gold_count = 0;
-                        manager.get('map').get_map().monster_count -= 1;
                         entity_manager.remove_entity(hit.id);
                         entity_manager.remove_entity(hit.id+"_full_health");
                         entity_manager.remove_entity(hit.id+"_health_left");
+                        manager.get('map').get_map().monster_count -= 1;
                         sound_manager.play('monster_dead');
                       } else if (Math.random() > 0.75) {
                         sound_manager.play('hit2');
@@ -553,6 +560,7 @@
                       }
                       hit.hits -= 1;
                       if (hit.hits <= 0) {
+                        this.hits += 5;
                         this.gold_count += hit.gold_count;
                         entity_manager.remove_entity(hit.id);
                         entity_manager.remove_entity(hit.id+"_full_health");
@@ -724,6 +732,9 @@
           },
         });
 
+
+        player.showing_help = true;
+
         console.log("map " + this.id + ": initialized");
       },
       "deinit": function (manager) {
@@ -750,35 +761,40 @@
         let player = manager.get('player').get_player();
         let hits = null, hit_index = 0, hit = null;
         let up = false, down = false, left = false, right = false,
-          attacking = false, digging = false, planting = false;
+          running = false, digging = false, planting = false;
         let text_out = null;
         let this_map = manager.get('map').get_map();
         let stage = null;
         let out_obj = null;
-        let attack_time_length = 50;
+        let max_run_length = 3;
         let plant_time_length = 50;
         let dig_time_length = 50;
         let offset = null;
+        let coords = null;
+        let backer = null;
 
         if (control_manager.keys('Escape')) {
-          if (player.last_toggled_help && (performance.now() - player.last_toggled_help < 200)) {
+          if (player.last_toggled_help && (performance.now() - player.last_toggled_help < 450)) {
             return;
           }
-
           player.last_toggled_help = performance.now();
+          player.showing_help = !player.showing_help;
+        }
 
-          if (player.showing_help) {
-            player.showing_help = false;
-            entity_manager.remove_entity("help_text_backer");
-            entity_manager.remove_text("help_text_0");
-            entity_manager.remove_text("help_text_1");
-            entity_manager.remove_text("help_text_2");
-            entity_manager.remove_text("help_text_3");
-          } else {
-            player.showing_help = true;
-
-            offset = manager.get('camera').get_offset();
-
+        if (!player.showing_help) {
+          backer = entity_manager.get_entity("help_text_backer");
+          if (backer) {
+            backer.img = "rgba(0, 0, 0, 0)";
+          }
+          entity_manager.remove_text("help_text_0");
+          entity_manager.remove_text("help_text_1");
+          entity_manager.remove_text("help_text_2");
+          entity_manager.remove_text("help_text_3");
+        } else {
+          offset = manager.get('camera').get_offset();
+          backer = entity_manager.get_entity("help_text_backer");
+          if (!backer) {
+            console.log("couldn't find backer...");
             entity_manager.add_entity({
               id: "help_text_backer",
               offset_type: "camera",
@@ -786,56 +802,63 @@
               y: 185+offset.y,
               ui_x: 200,
               ui_y: 185,
-              x_size: 350,
+              x_size: 375,
               y_size: 130,
               x_scale: 1,
               y_scale: 1,
               layer: 2.2,
-              img: "rgba(10, 10, 10, 0.8)",
+              img: "rgb(10, 10, 10, 0.8)",
               render_type: "fillRect",
               update: function (delta, manager) {
                 let entity_manager = manager.get('entity');
                 let offset = manager.get('camera').get_offset();
-                entity_manager.move_entity(this, this.ui_x+offset.x, this.ui_y+offset.y);
+                entity_manager.move_entity(this, this.ui_x+offset.x, this.ui_y+offset.y, true);
               }
             });
-            entity_manager.add_text({
-              id: "help_text_0",
-              text: "Controls:",
-              x: 210,
-              y: 210,
-              offset_type: "camera",
-              font: "20px sans",
-              color: "white",
-            });
-            entity_manager.add_text({
-              id: "help_text_1",
-              text: "WASD or Arrows to move",
-              x: 210,
-              y: 250,
-              offset_type: "camera",
-              font: "20px sans",
-              color: "white",
-            });
-            entity_manager.add_text({
-              id: "help_text_2",
-              text: "Space + move to attack or clear obstacles",
-              x: 210,
-              y: 275,
-              offset_type: "camera",
-              font: "20px sans",
-              color: "white",
-            });
-            entity_manager.add_text({
-              id: "help_text_3",
-              text: "Z digs, X plants",
-              x: 210,
-              y: 300,
-              offset_type: "camera",
-              font: "20px sans",
-              color: "white",
-            });
+          } else {
+            backer.img = "rgb(10, 10, 10, 0.8)";
           }
+          entity_manager.remove_text("help_text_0");
+          entity_manager.remove_text("help_text_1");
+          entity_manager.remove_text("help_text_2");
+          entity_manager.remove_text("help_text_3");
+
+          entity_manager.add_text({
+            id: "help_text_0",
+            text: "Controls: (Escape to show / hide these)",
+            x: 210,
+            y: 210,
+            offset_type: "camera",
+            font: "20px sans",
+            color: "white",
+          });
+          entity_manager.add_text({
+            id: "help_text_1",
+            text: "WASD or Arrows to move / attack",
+            x: 210,
+            y: 250,
+            offset_type: "camera",
+            font: "20px sans",
+            color: "white",
+          });
+          entity_manager.add_text({
+            id: "help_text_2",
+            text: "Space to dash 3 squares -- dash into things!",
+            x: 210,
+            y: 275,
+            offset_type: "camera",
+            font: "20px sans",
+            color: "white",
+          });
+          entity_manager.add_text({
+            id: "help_text_3",
+            text: "Z digs tiles, X plants them",
+            x: 210,
+            y: 300,
+            offset_type: "camera",
+            font: "20px sans",
+            color: "white",
+          });
         }
 
         if (control_manager.keys('KeyM')) {
@@ -890,23 +913,37 @@
         down = control_manager.keys('KeyS') || control_manager.keys('ArrowDown');
         left = control_manager.keys('KeyA') || control_manager.keys('ArrowLeft');
         right = control_manager.keys('KeyD') || control_manager.keys('ArrowRight');
-        attacking = control_manager.keys('Space');
+        running = control_manager.keys('Space');
         digging = control_manager.keys('KeyZ');
         planting = control_manager.keys('KeyX');
 
-        if (up && player.last_state.up) return;
-        if (down && player.last_state.down) return;
-        if (left && player.last_state.left) return;
-        if (right && player.last_state.right) return;
+        if (running && (up || down || left || right) && (player.run_length + 1 > max_run_length)) {
+          return;
+        } else if (running && (up || down || left || right)) {
+          player.run_length += 1;
+          player.running = true;
+        } else {
+          player.run_length = 0;
+          player.running = false;
+        }
+
+        player.attacking = true;
+        if (player.last_state && player.running && player.last_state.attacking) {
+          player.attacking = false;
+        }
+
+        if (!player.running && up && player.last_state.up) return;
+        if (!player.running && down && player.last_state.down) return;
+        if (!player.running && left && player.last_state.left) return;
+        if (!player.running && right && player.last_state.right) return;
         if (digging && player.last_state.digging) return;
         if (planting && player.last_state.planting) return;
 
         player.last_state = {
           up: up, down: down, left: left, right: right,
-          attacking: attacking, planting: planting, digging: digging
+          running: running, planting: planting, digging: digging
         };
 
-        player.attacking = attacking;
         player.planting = planting;
         player.digging = digging;
 
@@ -1009,8 +1046,11 @@
           if (hit.img === "tree") {
             player.x = player.last_x;
             player.y = player.last_y;
-            if (player.attacking) {
-              player.move_cooldown = 150;
+            if (player.attacking && player.running) {
+              sound_manager.play('explosion');
+              entity_manager.remove_entity(hit.id);
+              player.run_length = max_run_length;
+            } else if (player.attacking) {
               sound_manager.play('hit3');
               if (Math.random() > 0.5) {
                 hit.img = "stump";
@@ -1024,26 +1064,34 @@
               player.attacking = false;
             }
           } else if (hit.img === "barrel" || hit.img === "stump" || hit.img === "dead_tree") {
+            player.x = player.last_x;
+            player.y = player.last_y;
             if (player.attacking) {
-              player.move_cooldown = 150;
+              if (player.running) {
+                player.run_length = max_run_length;
+              }
               sound_manager.play('explosion');
               entity_manager.remove_entity(hit.id);
               if (!player.wood_count) {
                 player.wood_count = 0;
               }
               player.wood_count += 1;
-            } else {
-              player.x = player.last_x;
-              player.y = player.last_y;
             }
           } else if (hit.type === "monster") {
             player.x = player.last_x;
             player.y = player.last_y;
             if (player.attacking === true) {
-              if (!hit.hits) {
+              if (hit.hits === undefined) {
                 hit.hits = monster_health;
               }
-              hit.hits -= 1;
+
+              if (player.running) {
+                hit.hits -= 4;
+                player.run_length = max_run_length;
+              } else {
+                hit.hits -= 1;
+              }
+
               if (hit.hits <= 0) {
                 entity_manager.remove_entity(hit.id);
                 entity_manager.remove_entity(hit.id+"_full_health");
@@ -1058,7 +1106,7 @@
             }
             if (hit.attacking === true) {
               // roll for damage to player
-              if (Math.random() > 0.8) {
+              if (Math.random() > 0.7) {
                 player.health -= 1;
               }
             }
@@ -1070,8 +1118,16 @@
               if (!hit.hits) {
                 hit.hits = 10;
               }
-              hit.hits -= 1;
+
+              if (player.running) {
+                hit.hits -= 5;
+                player.run_length = max_run_length;
+              } else {
+                hit.hits -= 1;
+              }
+
               if (hit.hits <= 0) {
+                player.health += 5;
                 player.gold_count += hit.gold_count;
                 entity_manager.remove_entity(hit.id);
                 entity_manager.remove_entity(hit.id+"_full_health");
