@@ -1497,6 +1497,7 @@ let EntityManager = (function () {
     game_state = null,
     last_loading = null,
     just_loaded = null,
+    last_updated = null,
     stale_entities = function () {
       let debug = true;
       let loading = maps.is_loading();
@@ -1538,6 +1539,11 @@ let EntityManager = (function () {
       if (maps.is_loading()) {
         return entities;
       }
+
+      if (last_updated && (performance.now() - last_updated < 150)) {
+        return entities;
+      }
+      last_updated = performance.now();
 
       let camera = camera_manager.get_camera(),
         x = camera.x-camera.left_margin,
