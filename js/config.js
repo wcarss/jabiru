@@ -129,6 +129,15 @@ let config_spec = {
       "source_height": 26,
     },
     {
+      "type":"image",
+      "url":"resources/images/tileset.png",
+      "id":"temple",
+      "source_x":368,
+      "source_y":192,
+      "source_width":16,
+      "source_height":16
+    },
+    {
       "type": "image",
       "url": "resources/images/dirt.png",
       "id": "dirt",

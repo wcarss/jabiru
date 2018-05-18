@@ -67,7 +67,7 @@
           "water",
           "brush",
           "barrel", "stump",
-          "barrel", "stump", "treasure"
+          "barrel", "stump", "treasure", "temple"
         ];
         let image_names = big_images.concat(small_images);
 
@@ -241,6 +241,8 @@
         let this_map = manager.get('map').get_map();
         let tile = null;
         this_map.generated_seed = results;
+
+        results.tiles[get_key(random_int(map_x_size), random_int(map_y_size))] = "temple";
 
         for (i = 0; i < results.x_size; i++) {
           for (j = 0; j < results.y_size; j++) {
@@ -600,7 +602,7 @@
         //seed_distribution = manager.get('request').data
 
         entity_manager.add_entity({
-          id: 'text_backer',
+          id: 'hud_text_backer',
           offset_type: "camera",
           x: 10,
           y: 15,
@@ -732,6 +734,27 @@
           },
         });
 
+        let offset = manager.get('camera').get_offset();
+        entity_manager.add_entity({
+          id: "text_backer",
+          offset_type: "camera",
+          x: 200+offset.x,
+          y: 185+offset.y,
+          ui_x: 200,
+          ui_y: 185,
+          x_size: 375,
+          y_size: 150,
+          x_scale: 1,
+          y_scale: 1,
+          layer: 2.2,
+          img: "rgba(0, 0, 0, 0)",
+          render_type: "fillRect",
+          update: function (delta, manager) {
+            let entity_manager = manager.get('entity');
+            let offset = manager.get('camera').get_offset();
+            entity_manager.move_entity(this, this.ui_x+offset.x, this.ui_y+offset.y, true);
+          }
+        });
 
         player.showing_help = true;
 
@@ -772,8 +795,54 @@
         let offset = null;
         let coords = null;
         let backer = null;
+        let water_cooldown = 50;
+        let info_id_index = null;
+        let info_text = null;
+
+        if (player.dead) {
+          return;
+        }
+
+        if (player.health < 1) {
+          player.dead = true;
+          backer = entity_manager.get_entity("text_backer");
+          while (!backer) {
+            backer = entity_manager.get_entity("text_backer");
+          }
+          backer.img = "rgba(10, 10, 10, 0.8)";
+          offset = manager.get('camera').get_offset();
+          backer.x = backer.ui_x + offset.x;
+          backer.y = backer.ui_y + offset.y;
+          backer.x_size = 440;
+          backer.y_size = 40;
+
+          entity_manager.remove_text("text_dead");
+          entity_manager.add_text({
+            id: "text_dead",
+            text: "You have died! The world will never be safe!",
+            x: 210,
+            y: 210,
+            offset_type: "camera",
+            font: "20px sans",
+            color: "white",
+          });
+        }
 
         if (control_manager.keys('Escape')) {
+          if (player.showing_info && (performance.now() - player.showing_info_at > 200)) {
+            for (info_id_index in player.info_ids) {
+              entity_manager.remove_text(player.info_ids[info_id_index]);
+            }
+            backer = entity_manager.get_entity("text_backer");
+            if (backer) {
+              backer.img = "rgba(0, 0, 0, 0)";
+            }
+            player.showing_info = false;
+            player.showing_info_at = null;
+            player.last_toggled_help = performance.now();
+            return;
+          }
+
           if (player.last_toggled_help && (performance.now() - player.last_toggled_help < 450)) {
             return;
           }
@@ -781,8 +850,8 @@
           player.showing_help = !player.showing_help;
         }
 
-        if (!player.showing_help) {
-          backer = entity_manager.get_entity("help_text_backer");
+        if (!player.showing_help && !player.showing_info) {
+          backer = entity_manager.get_entity("text_backer");
           if (backer) {
             backer.img = "rgba(0, 0, 0, 0)";
           }
@@ -791,33 +860,15 @@
           entity_manager.remove_text("help_text_2");
           entity_manager.remove_text("help_text_3");
           entity_manager.remove_text("help_text_4");
-        } else {
+        } else if (player.showing_help) {
           offset = manager.get('camera').get_offset();
-          backer = entity_manager.get_entity("help_text_backer");
-          if (!backer) {
-            console.log("couldn't find backer...");
-            entity_manager.add_entity({
-              id: "help_text_backer",
-              offset_type: "camera",
-              x: 200+offset.x,
-              y: 185+offset.y,
-              ui_x: 200,
-              ui_y: 185,
-              x_size: 375,
-              y_size: 150,
-              x_scale: 1,
-              y_scale: 1,
-              layer: 2.2,
-              img: "rgb(10, 10, 10, 0.8)",
-              render_type: "fillRect",
-              update: function (delta, manager) {
-                let entity_manager = manager.get('entity');
-                let offset = manager.get('camera').get_offset();
-                entity_manager.move_entity(this, this.ui_x+offset.x, this.ui_y+offset.y, true);
-              }
-            });
-          } else {
-            backer.img = "rgb(10, 10, 10, 0.8)";
+          backer = entity_manager.get_entity("text_backer");
+          if (backer) {
+            backer.img = "rgba(10, 10, 10, 0.8)";
+            backer.x = backer.ui_x + offset.x;
+            backer.y = backer.ui_y + offset.y;
+            backer.x_size = 375;
+            backer.y_size = 150;
           }
           entity_manager.remove_text("help_text_0");
           entity_manager.remove_text("help_text_1");
@@ -917,6 +968,12 @@
           return;
         }
 
+        if (player.hit_water && (performance.now() - player.hit_water) < water_cooldown) {
+          return;
+        } else if (player.hit_water && (performance.now() - player.hit_water) > water_cooldown) {
+          player.hit_water = null;
+        }
+
         player.last_x = player.x;
         player.last_y = player.y;
 
@@ -988,9 +1045,49 @@
           }
 
           if (hit.img === "water") {
-            player.move_cooldown = 200;
-          } else {
-            player.move_cooldown = player.default_move_cooldown;
+            player.hit_water = performance.now();
+            player.run_length = 0;
+          }
+
+          if (hit.img === "temple") {
+            if (!player.showing_info && (player.x !== player.last_x || player.y !== player.last_y)) {
+              info_text = "Congratulations! The world is safe!";
+              if (map.monster_count > 20) {
+                info_text = "Keep playing! There's still " + map.monster_count + " monsters!";
+              }
+              player.showing_info_at = performance.now();
+              player.showing_info = true;
+              player.info_ids = ["info_keep_playing"];
+              backer = false;
+              while (!backer) {
+                backer = entity_manager.get_entity("text_backer");
+              }
+              backer.img = "rgba(10, 10, 10, 0.8)";
+              offset = manager.get('camera').get_offset();
+              backer.x = backer.ui_x + offset.x;
+              backer.y = backer.ui_y + offset.y;
+              backer.x_size = 410;
+              backer.y_size = 40;
+
+              entity_manager.add_text({
+                id: "info_keep_playing",
+                text: info_text,
+                x: 210,
+                y: 212,
+                offset_type: "camera",
+                font: "24px sans",
+                color: "white",
+                update: function (delta, manager) {
+                  let player = manager.get('player').get_player();
+                  let map = manager.get('map').get_map();
+                  let info_text = "Congratulations! The world is safe!";
+                  if (map.monster_count > 20) {
+                    info_text = "Keep playing! There's still " + map.monster_count + " monsters!";
+                  }
+                  this.text = info_text;
+                }
+              });
+            }
           }
 
           if (player.x === player.last_x && player.y === player.last_y) {
