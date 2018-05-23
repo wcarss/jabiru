@@ -522,7 +522,7 @@
                     this.y = this.last_y;
                     if (this.attacking) {
                       sound_manager.play('hit2');
-                      if (Math.random() > 0.8) {
+                      if (Math.random() > 0.55) {
                         hit.health -= 1;
                       }
                     }
