@@ -961,8 +961,9 @@
 
         if (control_manager.mouse()) {
           coords = control_manager.mouse_coords();
-          player.x = Math.floor(coords.x / map.tile_x_size) * map.tile_x_size;
-          player.y = Math.floor(coords.y / map.tile_y_size) * map.tile_y_size;
+          offset = camera_manager.get_offset();
+          player.x = Math.floor((offset.x + coords.x) / map.tile_x_size) * map.tile_x_size;
+          player.y = Math.floor((offset.y + coords.y) / map.tile_y_size) * map.tile_y_size;
           entity_manager.move_entity(player, player.x, player.y);
           camera_manager.center(player.x, player.y);
           return;
