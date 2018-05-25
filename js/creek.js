@@ -30,7 +30,7 @@ let GameManager = (function () {
       });
 
       manager.get('audio').load_clips(manager.get('resource').get_resources()['sound']);
-      requestAnimationFrame(manager.get('render').next_frame)
+      manager.get('render').next_frame();
     };
 
   return function () {
@@ -460,6 +460,7 @@ let ContextManager = (function () {
       stage = document.getElementById("stage");
       canvas = document.createElement("canvas");
 
+      document.body.style.overflow = "hidden";
       stage.style.overflow = "hidden";
       canvas.style.overflow = "hidden";
       canvas.id = canvas_id;
@@ -592,7 +593,7 @@ let CameraManager = (function () {
         resize(context_manager.get_width(), context_manager.get_height());
       }
 
-      let bounds = map_manager.get_bounds();
+      let bounds = manager.get('map').get_bounds();
 
       x = clamp(x, bounds.x, bounds.width-camera.width);
       y = clamp(y, bounds.y, bounds.height-camera.height);
@@ -619,7 +620,6 @@ let CameraManager = (function () {
 
       fullscreen = config.fullscreen || false;
 
-      map_manager = manager.get('map');
       context_manager = manager.get('context');
 
       if (fullscreen) {
@@ -1078,8 +1078,8 @@ let MapManager = (function () {
       return {
         x: 0,
         y: 0,
-        width: map.width || map.x_size,
-        height: map.height || map.y_size,
+        width: map.width,
+        height: map.height,
       };
     },
     change_maps = function (map_id) {
@@ -1183,7 +1183,6 @@ let MapManager = (function () {
       }
       min_change_time = config['min_map_change_time'] || 150;
       current_map_id = config['initial_map_id'];
-      change_maps(current_map_id);
     };
 
   return function () {
@@ -1498,28 +1497,6 @@ let EntityManager = (function () {
     last_loading = null,
     just_loaded = null,
     last_updated = null,
-    stale_entities = function () {
-      let debug = true;
-      let loading = maps.is_loading();
-      let stale = current_map_id !== maps.get_current_map_id();
-      if (debug && loading && (!last_loading || performance.now() - last_loading > 300)) {
-        last_loading = performance.now();
-        console.log("loading...");
-      }
-
-      if (!loading && last_loading !== null) {
-        last_loading = null;
-        stale = true;
-        just_loaded = true;
-        console.log("forced staleness to help load.");
-      }
-
-      if (debug && stale) {
-        console.log("found stale entities.");
-      }
-
-      return loading || stale;
-    },
     get_entity = function (id) {
       let i = null;
 
@@ -1535,12 +1512,15 @@ let EntityManager = (function () {
     clear_entities = function () {
       console.log("clearing all entities yo");
     },
-    get_entities = function () {
+    get_entities = function (options) {
+      options = options || {};
+      let setup = options.setup;
+
       if (maps.is_loading()) {
         return entities;
       }
 
-      if (last_updated && (performance.now() - last_updated < 150)) {
+      if (!setup && last_updated && (performance.now() - last_updated < 50)) {
         return entities;
       }
       last_updated = performance.now();
@@ -1624,19 +1604,13 @@ let EntityManager = (function () {
       player.modify_player('layer', current_map.player_layer);
       tree = maps.get_quadtree(current_map);
       layers.splice(current_map.player_layer, 1);
-      entities = get_entities();
+      entities = get_entities({setup: true});
     },
     move_entity = function (entity, x, y) {
       if (maps.is_loading()) {
         return;
       }
-
-      quadtree_remove_by_id(tree, entity.id);
-
-      entity.x = x;
-      entity.y = y;
-
-      quadtree_insert(tree, entity);
+      quadtree_move(tree, entity, x, y);
     },
     add_entity = function (entity) {
       quadtree_insert(tree, entity);
@@ -1667,13 +1641,10 @@ let EntityManager = (function () {
     collide = function (entity) {
       let collisions = [],
         target = null,
-        i = null,
-        local_entities = null;
+        i = null;
 
-      local_entities = quadtree_get_by_range(tree, entity.x-entity.x_size, entity.y-entity.y_size, entity.x+2*entity.x_size, entity.y+2*entity.y_size);
-
-      for (i in local_entities) {
-        target = local_entities[i];
+      for (i in entities) {
+        target = entities[i];
         if (target.active !== false && entity.id !== target.id && physics.collide(entity, target)) {
           collisions.push(target);
         }
@@ -1714,6 +1685,7 @@ let EntityManager = (function () {
       console.log("setting up the ui manager");
       game_state = manager.get('game_state');
       last_particle_added = performance.now();
+      maps.change_maps(maps.get_current_map_id());
       setup_entities();
     };
 
@@ -1723,7 +1695,6 @@ let EntityManager = (function () {
       init: init,
       get_entities: get_entities,
       get_entity: get_entity,
-      stale_entities: stale_entities,
       setup_entities: setup_entities,
       update: update,
       collide: collide,
@@ -1997,7 +1968,8 @@ let RenderManager = (function () {
   let manager = null,
     context_manager = null,
     frames_per_second = null,
-    last_time = null,
+    last_time = performance.now(),
+    current_time = performance.now(),
     entities = null,
     resources = null,
     stored_count = null,
@@ -2054,28 +2026,26 @@ let RenderManager = (function () {
       context.font = text.font;
       context.fillText(text.text, x, y);
     },
-    next_frame = function (current_time) {
-      let world_offset = null,
-        draw_list = null,
-        text_list = null,
-        context = null,
-        di = null,
+    next_frame = function () {
+      current_time = performance.now();
+      let delta = ((current_time - last_time)/1000) * frames_per_second;
+      let di = null,
         ti = null;
+      last_time = current_time;
 
-      entities.update(null, manager);
-      entities.load_if_needed();
-
-      world_offset = manager.get('camera').get_offset();
-      draw_list = entities.get_entities();
-      text_list = entities.get_texts();
-      context = context_manager.get_context();
+      let world_offset = manager.get('camera').get_offset(),
+        draw_list = entities.get_entities(),
+        text_list = entities.get_texts(),
+        context = context_manager.get_context();
 
       for (di in draw_list) {
-        draw(draw_list[di], context, null, world_offset);
+        draw(draw_list[di], context, delta, world_offset);
       }
       for (ti in text_list) {
-        text_draw(text_list[ti], context, null, world_offset);
+        text_draw(text_list[ti], context, delta, world_offset);
       }
+      entities.update(delta, manager);
+      entities.load_if_needed();
 
       requestAnimationFrame(next_frame);
     },
