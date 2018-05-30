@@ -119,8 +119,8 @@
               y = j * map.tile_y_size;
               image_name = array_random(image_names);
               if (small_images.includes(image_name)) {
-                x_scale = 2;
-                y_scale = 2;
+                x_scale = 1;
+                y_scale = 1;
               } else {
                 x_scale = map.tile_x_size / 64;
                 y_scale = map.tile_y_size / 64;
@@ -247,8 +247,8 @@
         for (i = 0; i < results.x_size; i++) {
           for (j = 0; j < results.y_size; j++) {
             if (small_images.includes(results.tiles[get_key(i, j)])) {
-              x_scale = 2;
-              y_scale = 2;
+              x_scale = 1;
+              y_scale = 1;
             } else {
               x_scale = map.tile_x_size / 64;
               y_scale = map.tile_y_size / 64;

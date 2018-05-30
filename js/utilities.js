@@ -47,6 +47,25 @@ function log_all(pre_message, hash) {
   console.log(str);
 }
 
+let split_log_once = function (store, key, variant, options) {
+  const prefix = "split_log_once_";
+  const lookup_root = prefix + key;
+  const lookup_variant = lookup_root + "_" + variant;
+
+  if (!store[lookup_variant]) {
+    console.log(key + " -- " + variant);
+    if (store[lookup_root]) {
+      console.log(key + " -- ALREADY LOGGED w/ variant: " + store[lookup_root]);
+      if (options && options.trigger_debugger) {
+        debugger;
+      }
+    }
+
+    store[lookup_root] = variant;
+    store[lookup_variant] = true;
+  }
+};
+
 function console_log(msg) {
   if (debug) {
     console.log(msg);
