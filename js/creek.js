@@ -902,7 +902,7 @@ let ControlManager = (function () {
         }
       });
 
-      window.addEventListener("mousedown", function (e) {
+      window.addEventListener("pointerdown", function (e) {
         controls.mouse.down_event = e;
         controls.mouse.x = e.x;
         controls.mouse.y = e.y;
@@ -910,7 +910,7 @@ let ControlManager = (function () {
         controls.mouse.down_at = performance.now();
       });
 
-      window.addEventListener("mouseup", function (e) {
+      window.addEventListener("pointerup", function (e) {
         delete controls.mouse.down_event;
         controls.mouse.down = false;
         controls.mouse.up_at = performance.now();
@@ -921,7 +921,7 @@ let ControlManager = (function () {
         }
       });
 
-      window.addEventListener("mousemove", function (e) {
+      window.addEventListener("pointermove", function (e) {
         controls.mouse.move_event = e;
         controls.mouse.x = e.x;
         controls.mouse.y = e.y;
@@ -1001,10 +1001,10 @@ let UIManager = (function () {
         control_manager.set_button(button.id, 'down', false);
       };
 
-      element.addEventListener('mouseenter', button.on_enter);
-      element.addEventListener('mouseout', button.on_out);
-      element.addEventListener('mousedown', button.on_down);
-      element.addEventListener('mouseup', button.on_up);
+      element.addEventListener('pointereenter', button.on_enter);
+      element.addEventListener('pointerout', button.on_out);
+      element.addEventListener('pointerdown', button.on_down);
+      element.addEventListener('pointerup', button.on_up);
 
       let stage = document.getElementById("stage");
       stage.appendChild(element);
@@ -1022,10 +1022,10 @@ let UIManager = (function () {
       }
 
       let element = button.element;
-      element.removeEventListener('mouseenter', button.on_enter);
-      element.removeEventListener('mouseout', button.on_out);
-      element.removeEventListener('mousedown', button.on_down);
-      element.removeEventListener('mouseup', button.on_up);
+      element.removeEventListener('pointerenter', button.on_enter);
+      element.removeEventListener('pointerout', button.on_out);
+      element.removeEventListener('pointerdown', button.on_down);
+      element.removeEventListener('pointerup', button.on_up);
 
       let stage = document.getElementById("stage");
       stage.removeChild(element);
