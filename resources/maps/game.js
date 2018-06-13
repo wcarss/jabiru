@@ -91,8 +91,8 @@
         canvas_height = this.y_size * tile_y_size;
         context_manager.resize(null, canvas_width, canvas_height);
         camera_manager.resize(canvas_width, canvas_height);
-        this.x_size *= 2;
-        this.y_size *= 2;
+        this.x_size *= 6;
+        this.y_size *= 6;
         map_x_size = this.x_size;
         map_y_size = this.y_size;
         this.width = this.x_size * tile_x_size;
