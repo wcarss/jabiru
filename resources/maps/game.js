@@ -89,9 +89,9 @@
         this.y_size = Math.ceil(canvas_height / tile_y_size);
         canvas_width = this.x_size * tile_x_size;
         canvas_height = this.y_size * tile_y_size;
-        context_manager.resize(null, canvas_width, canvas_height);
+        context_manager.resize(null, 0, 0, canvas_width, canvas_height);
         camera_manager.resize(canvas_width, canvas_height);
-        this.x_size *= 6;
+        this.x_size *= 5;
         this.y_size *= 6;
         map_x_size = this.x_size;
         map_y_size = this.y_size;
@@ -805,16 +805,15 @@
 
         if (player.health < 1) {
           player.dead = true;
-          backer = entity_manager.get_entity("text_backer");
-          while (!backer) {
-            backer = entity_manager.get_entity("text_backer");
-          }
-          backer.img = "rgba(10, 10, 10, 0.8)";
           offset = manager.get('camera').get_offset();
-          backer.x = backer.ui_x + offset.x;
-          backer.y = backer.ui_y + offset.y;
-          backer.x_size = 440;
-          backer.y_size = 40;
+          backer = entity_manager.get_entity("text_backer");
+          if (backer) {
+            backer.img = "rgba(10, 10, 10, 0.8)";
+            backer.x = backer.ui_x + offset.x;
+            backer.y = backer.ui_y + offset.y;
+            backer.x_size = 375;
+            backer.y_size = 150;
+          }
 
           entity_manager.remove_text("text_dead");
           entity_manager.add_text({
@@ -855,11 +854,15 @@
           if (backer) {
             backer.img = "rgba(0, 0, 0, 0)";
           }
-          entity_manager.remove_text("help_text_0");
-          entity_manager.remove_text("help_text_1");
-          entity_manager.remove_text("help_text_2");
-          entity_manager.remove_text("help_text_3");
-          entity_manager.remove_text("help_text_4");
+          if (!player.help_text_removed) {
+            player.help_text_removed = true;
+            player.help_text_added = false;
+            entity_manager.remove_text("help_text_0");
+            entity_manager.remove_text("help_text_1");
+            entity_manager.remove_text("help_text_2");
+            entity_manager.remove_text("help_text_3");
+            entity_manager.remove_text("help_text_4");
+          }
         } else if (player.showing_help) {
           offset = manager.get('camera').get_offset();
           backer = entity_manager.get_entity("text_backer");
@@ -870,57 +873,56 @@
             backer.x_size = 375;
             backer.y_size = 150;
           }
-          entity_manager.remove_text("help_text_0");
-          entity_manager.remove_text("help_text_1");
-          entity_manager.remove_text("help_text_2");
-          entity_manager.remove_text("help_text_3");
-          entity_manager.remove_text("help_text_4");
 
-          entity_manager.add_text({
-            id: "help_text_0",
-            text: "Controls: (show / hide with Escape)",
-            x: 210,
-            y: 210,
-            offset_type: "camera",
-            font: "20px sans",
-            color: "white",
-          });
-          entity_manager.add_text({
-            id: "help_text_1",
-            text: "Move / Attack   -  WASD or Arrows",
-            x: 210,
-            y: 250,
-            offset_type: "camera",
-            font: "20px sans",
-            color: "white",
-          });
-          entity_manager.add_text({
-            id: "help_text_2",
-            text: "Dash                  -  Hold Space and move",
-            x: 210,
-            y: 275,
-            offset_type: "camera",
-            font: "20px sans",
-            color: "white",
-          });
-          entity_manager.add_text({
-            id: "help_text_3",
-            text: "Dig Tile             -  z",
-            x: 210,
-            y: 300,
-            offset_type: "camera",
-            font: "20px sans",
-            color: "white",
-          });
-          entity_manager.add_text({
-            id: "help_text_4",
-            text: "Place Tile          -  x",
-            x: 210,
-            y: 325,
-            offset_type: "camera",
-            font: "20px sans",
-            color: "white",
-          });
+          if (!player.help_text_added) {
+            player.help_text_removed = false;
+            player.help_text_added = true;
+            entity_manager.add_text({
+              id: "help_text_0",
+              text: "Controls: (show / hide with Escape)",
+              x: 210,
+              y: 210,
+              offset_type: "camera",
+              font: "20px sans",
+              color: "white",
+            });
+            entity_manager.add_text({
+              id: "help_text_1",
+              text: "Move / Attack   -  WASD or Arrows",
+              x: 210,
+              y: 250,
+              offset_type: "camera",
+              font: "20px sans",
+              color: "white",
+            });
+            entity_manager.add_text({
+              id: "help_text_2",
+              text: "Dash                  -  Hold Space and move",
+              x: 210,
+              y: 275,
+              offset_type: "camera",
+              font: "20px sans",
+              color: "white",
+            });
+            entity_manager.add_text({
+              id: "help_text_3",
+              text: "Dig Tile             -  z",
+              x: 210,
+              y: 300,
+              offset_type: "camera",
+              font: "20px sans",
+              color: "white",
+            });
+            entity_manager.add_text({
+              id: "help_text_4",
+              text: "Place Tile          -  x",
+              x: 210,
+              y: 325,
+              offset_type: "camera",
+              font: "20px sans",
+              color: "white",
+            });
+          }
         }
 
         if (control_manager.keys('KeyM')) {
