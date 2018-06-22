@@ -87,10 +87,10 @@
         // some camera and map size adjustments
         this.x_size = Math.ceil(canvas_width / tile_x_size);
         this.y_size = Math.ceil(canvas_height / tile_y_size);
-        canvas_width = this.x_size * tile_x_size;
-        canvas_height = this.y_size * tile_y_size;
-        context_manager.resize(null, 0, 0, canvas_width, canvas_height);
-        camera_manager.resize(canvas_width, canvas_height);
+//        canvas_width = this.x_size * tile_x_size;
+//        canvas_height = this.y_size * tile_y_size;
+//        context_manager.resize(null, 0, 0, canvas_width, canvas_height);
+//        camera_manager.resize(canvas_width, canvas_height);
         this.x_size *= 5;
         this.y_size *= 6;
         map_x_size = this.x_size;
@@ -961,7 +961,7 @@
           player.last_toggled_text = performance.now();
         }
 
-        if (control_manager.mouse()) {
+/*        if (control_manager.mouse()) {
           coords = control_manager.mouse_coords();
           offset = camera_manager.get_offset();
           player.x = Math.floor((offset.x + coords.x) / map.tile_x_size) * map.tile_x_size;
@@ -970,6 +970,7 @@
           camera_manager.center(player.x, player.y);
           return;
         }
+*/
 
         if (player.hit_water && (performance.now() - player.hit_water) < water_cooldown) {
           return;
@@ -980,13 +981,13 @@
         player.last_x = player.x;
         player.last_y = player.y;
 
-        up = control_manager.keys('KeyW') || control_manager.keys('ArrowUp');
-        down = control_manager.keys('KeyS') || control_manager.keys('ArrowDown');
-        left = control_manager.keys('KeyA') || control_manager.keys('ArrowLeft');
-        right = control_manager.keys('KeyD') || control_manager.keys('ArrowRight');
-        running = control_manager.keys('Space');
-        digging = control_manager.keys('KeyZ');
-        planting = control_manager.keys('KeyX');
+        up = control_manager.keys('KeyW') || control_manager.keys('ArrowUp') || control_manager.buttons('d_pad_top');
+        down = control_manager.keys('KeyS') || control_manager.keys('ArrowDown') || control_manager.buttons('d_pad_bottom');
+        left = control_manager.keys('KeyA') || control_manager.keys('ArrowLeft') || control_manager.buttons('d_pad_left');
+        right = control_manager.keys('KeyD') || control_manager.keys('ArrowRight') || control_manager.buttons('d_pad_right');
+        running = control_manager.keys('Space') || control_manager.buttons('a_button');
+        digging = control_manager.keys('KeyZ') || control_manager.buttons('b_button');
+        planting = control_manager.keys('KeyX') || control_manager.buttons('start_button');
 
         if (running && (up || down || left || right) && (player.run_length + 1 > max_run_length)) {
           return;

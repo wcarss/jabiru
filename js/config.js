@@ -38,6 +38,39 @@ let config_spec = {
         player_manager = manager.get('player'),
         keys = control_manager.get_controls();
 
+        if (navigator.maxTouchPoints !== 0) {
+          if (!manager.get('data').get('sound_enabled') && !manager.get('data').get('sound_prompted')) {
+          let sound_guy = document.createElement("div");
+          sound_guy.style.position = "absolute";
+          sound_guy.style.top = 0;
+          sound_guy.style.left = 0;
+          sound_guy.style.width = "100%";
+          sound_guy.style.height = "100%";
+          sound_guy.style.background = "black";
+          sound_guy.style.color = "white";
+          sound_guy.style['z-index'] = 99999;
+          sound_guy.addEventListener("pointerup", function () {
+            manager.get('audio').play('explosion');
+            manager.get('audio').play('hit2');
+            manager.get('audio').play('hit3');
+            manager.get('audio').play('monster_dead');
+            manager.get('audio').play('pickup');
+            manager.get('audio').play('monster');
+            document.body.removeChild(sound_guy);
+            manager.get('data').set('sound_enabled', true);
+          });
+          let play_text = document.createElement("p");
+          play_text.style.margin = "30% 0";
+          play_text.style.width = "100%";
+          play_text.style.font = "48px Arial";
+          play_text.style['text-align'] = "left";
+          play_text.innerHTML = "click to play!";
+
+          document.body.appendChild(sound_guy);
+          sound_guy.appendChild(play_text);
+          manager.get('data').set('sound_prompted', true);
+        }
+      }
         // use managers and keys[] dictionaries for global game controls that
         // don't necessarily interact with the player or the map
     }
