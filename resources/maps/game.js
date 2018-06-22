@@ -827,7 +827,7 @@
           });
         }
 
-        if (control_manager.keys('Escape')) {
+        if (control_manager.keys('Escape') || control_manager.buttons('start_button')) {
           if (player.showing_info && (performance.now() - player.showing_info_at > 200)) {
             for (info_id_index in player.info_ids) {
               entity_manager.remove_text(player.info_ids[info_id_index]);
@@ -874,7 +874,7 @@
             backer.y_size = 150;
           }
 
-          if (!player.help_text_added) {
+          if (!player.help_text_added && navigator.maxTouchPoints !== 0) {
             player.help_text_removed = false;
             player.help_text_added = true;
             entity_manager.add_text({
@@ -987,7 +987,7 @@
         right = control_manager.keys('KeyD') || control_manager.keys('ArrowRight') || control_manager.buttons('d_pad_right');
         running = control_manager.keys('Space') || control_manager.buttons('a_button');
         digging = control_manager.keys('KeyZ') || control_manager.buttons('b_button');
-        planting = control_manager.keys('KeyX') || control_manager.buttons('start_button');
+        planting = control_manager.keys('KeyX') || control_manager.buttons('select_button');
 
         if (running && (up || down || left || right) && (player.run_length + 1 > max_run_length)) {
           return;
